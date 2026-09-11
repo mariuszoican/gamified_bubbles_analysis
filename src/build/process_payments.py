@@ -127,6 +127,23 @@ def load_post_exp(raw_path, export_date: str, oTree_codes: list[str]) -> pd.Data
     return post_exp[post_exp["session.code"].isin(list(oTree_codes))].copy()
 
 
+def apply_contact_overrides(
+    post_exp: pd.DataFrame, overrides: dict, *, column: str, label: str
+) -> list[str]:
+    """Fill contact fields from the session registry. Returns applied flags."""
+    if not overrides:
+        return []
+    applied = []
+    for code, value in overrides.items():
+        mask = post_exp["participant.code"].astype(str) == str(code)
+        if int(mask.sum()) == 0:
+            applied.append(f"{label} override unused: {code} not in export")
+            continue
+        post_exp.loc[mask, column] = str(value).strip()
+        applied.append(f"{label} override applied: {code}")
+    return applied
+
+
 def process_payments(session_id: str) -> dict:
     session = get_session(session_id)
     params = load_parameters()
@@ -138,6 +155,20 @@ def process_payments(session_id: str) -> dict:
         )
 
     post_exp = load_post_exp(raw_path, session["export_date"], session["oTree_codes"])
+    override_flags = apply_contact_overrides(
+        post_exp,
+        session.get("email_overrides") or {},
+        column=email_column(post_exp),
+        label="email",
+    )
+    sid_col = student_id_column(post_exp)
+    if sid_col:
+        override_flags += apply_contact_overrides(
+            post_exp,
+            session.get("student_id_overrides") or {},
+            column=sid_col,
+            label="student_id",
+        )
     groups = classify_participants(
         post_exp, completed_pages=list(params["completed_pages"])
     )
@@ -146,7 +177,7 @@ def process_payments(session_id: str) -> dict:
         exchange_rate=params["exchange_rate"],
         participation_fee=params["participation_fee"],
     )
-    flags = collect_quality_flags(groups=groups, payments=payments)
+    flags = override_flags + collect_quality_flags(groups=groups, payments=payments)
     record = build_session_record(
         session=session,
         groups=groups,

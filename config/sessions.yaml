@@ -5,11 +5,15 @@
 #
 # Rules:
 #   - id:            lab calendar day (YYYYMMDD) + optional _AM/_PM
+#   - raw_folder:    override if the raw dump lives under a different name
 #   - export_date:   date string in CSV filenames (YYYY-MM-DD); may differ
 #                    from the folder day when the export ran overnight
 #   - oTree_codes:   session.code values to include from those CSVs
 #   - include:       if true, enters data/processed/*_full.csv
 #   - notes:         free text for co-authors
+#   - email_overrides / student_id_overrides:
+#                      {participant.code: value} filled at payment time only;
+#                      raw CSVs stay untouched
 #
 # Quote id values so YAML does not parse bare YYYYMMDD as integers.
 
@@ -39,10 +43,22 @@ sessions:
     notes: "2 ghp + 2 ng + 1 gh. Incomplete gp (n=4) dropped. Aborted q2uzwrke excluded."
 
   - id: "20280904"
+    raw_folder: "20260904"
     export_date: "2026-09-04"
     oTree_codes: [h04ar64h]
     include: true
-    notes: "2 ghp + 2 ng. Incomplete ghp (n=3) paid but dropped from panels. Aborted pjdgwdrm excluded. Export also contains 8o0qyfku (already logged as 20260826). Analysis excludes 20280904/ghp1 (P stays below 10 both reps)."
+    notes: "2 ghp + 2 ng. Incomplete ghp (n=3) paid but dropped from panels. Aborted pjdgwdrm excluded. Export also contains 8o0qyfku (already logged as 20260826). Analysis excludes 20280904/ghp1 (P stays below 10 both reps). Raw lives under data/raw/20260904."
+
+  - id: "20260910"
+    export_date: "2026-09-11"
+    oTree_codes: [ykk5p8z9]
+    include: true
+    notes: "3 ghp + 2 ng. Incomplete ng (n=1) paid but dropped from panels. P2 38up52f8 email and student ID filled from lab roster. P4 03xcqsa5 email filled as lynn.huynh@ucalgary.ca."
+    email_overrides:
+      38up52f8: tristen.tilos@ucalgary.ca
+      03xcqsa5: lynn.huynh@ucalgary.ca
+    student_id_overrides:
+      38up52f8: "30250490"
 
   - id: "20260505_PILOT"
     export_date: "2026-05-05"

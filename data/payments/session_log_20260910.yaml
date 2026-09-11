@@ -1,0 +1,30 @@
+session_id: '20260910'
+export_date: '2026-09-11'
+oTree_codes:
+- ykk5p8z9
+notes: 3 ghp + 2 ng. Incomplete ng (n=1) paid but dropped from panels. P2 38up52f8
+  email and student ID filled from lab roster. P4 03xcqsa5 email filled as lynn.huynh@ucalgary.ca.
+processed_at: '2026-09-11T03:14:27.014860+00:00'
+counts:
+  slots_in_export: 31
+  started: 31
+  completed: 31
+  incomplete: 0
+  never_started: 0
+  paid: 31
+payoffs_points:
+  n: 31
+  min: 1240.0
+  max: 7464.0
+  mean: 5310.387096774193
+payments:
+  participation_fee_cad: 15.0
+  exchange_rate: 0.003
+  experimental_payoff_cad_sum: 493.86
+  total_payment_cad_sum: 958.86
+incomplete: []
+flags:
+- 'email override applied: 38up52f8'
+- 'email override applied: 03xcqsa5'
+- 'student_id override applied: 38up52f8'
+- '1 completers missing student_id: 03xcqsa5'

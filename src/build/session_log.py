@@ -178,9 +178,27 @@ def collect_quality_flags(
     n_email = int(nonempty(email).sum()) if len(email) else 0
     n_sid = int(nonempty(sid).sum()) if len(sid) else 0
     if n_email < len(completed):
-        flags.append(f"{len(completed) - n_email} completers missing email")
+        extra = ""
+        if len(email) == len(completed):
+            missing = (
+                completed.loc[~nonempty(email), "participant.code"]
+                .astype(str)
+                .tolist()
+            )
+            extra = f": {', '.join(missing)}"
+        flags.append(f"{len(completed) - n_email} completers missing email{extra}")
     if n_sid < len(completed):
-        flags.append(f"{len(completed) - n_sid} completers missing student_id")
+        extra = ""
+        if len(sid) == len(completed):
+            missing = (
+                completed.loc[~nonempty(sid), "participant.code"]
+                .astype(str)
+                .tolist()
+            )
+            extra = f": {', '.join(missing)}"
+        flags.append(
+            f"{len(completed) - n_sid} completers missing student_id{extra}"
+        )
 
     if not payments.empty:
         dup_email = payments["email"].astype(str).str.lower().duplicated(keep=False)

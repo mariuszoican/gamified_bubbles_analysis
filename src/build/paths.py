@@ -41,7 +41,8 @@ def get_session(session_id: str) -> dict:
 
 def raw_dir_for(session: dict) -> Path:
     root = ARCHIVE_DIR if session.get("raw_root") == "archive" else RAW_DIR
-    return root / str(session["id"])
+    folder = str(session.get("raw_folder") or session["id"])
+    return root / folder
 
 
 def interim_dir_for(session_id: str) -> Path:
