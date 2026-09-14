@@ -60,6 +60,12 @@ sessions:
     student_id_overrides:
       38up52f8: "30250490"
 
+  - id: "20260914"
+    export_date: "2026-09-14"
+    oTree_codes: [3vx0787i]
+    include: true
+    notes: "2 ghp + 2 ng. Export also contains ykk5p8z9 (already logged as 20260910)."
+
   - id: "20260505_PILOT"
     export_date: "2026-05-05"
     oTree_codes: [skdclskt]

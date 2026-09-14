@@ -1,0 +1,25 @@
+session_id: '20260914'
+export_date: '2026-09-14'
+oTree_codes:
+- 3vx0787i
+notes: 2 ghp + 2 ng. Export also contains ykk5p8z9 (already logged as 20260910).
+processed_at: '2026-09-14T21:14:55.499552+00:00'
+counts:
+  slots_in_export: 24
+  started: 24
+  completed: 24
+  incomplete: 0
+  never_started: 0
+  paid: 24
+payoffs_points:
+  n: 24
+  min: 4054.0
+  max: 7146.0
+  mean: 5178.416666666667
+payments:
+  participation_fee_cad: 15.0
+  exchange_rate: 0.003
+  experimental_payoff_cad_sum: 372.86
+  total_payment_cad_sum: 732.86
+incomplete: []
+flags: []

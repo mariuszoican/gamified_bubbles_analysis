@@ -11,7 +11,7 @@ and 20280904/ghp1 (price opens below 10 and stays there in both reps).
 Figures
   1. mispricing_daypath   – absolute mispricing, AMR, RAD by trading day
   2. liquidity_spreads    – relative effective and realized spreads
-  3. volume_orderflow     – volume, order-flow imbalance, limit orders, churn
+  3. volume_orderflow     – volume, |OFI|, limit orders, churn
   4. literacy_gini_payoff – Gini day path; payoff by financial literacy
   9. price_paths          – mean trade price by day in GHP vs NG, plus v_t
  10. carry_daypath        – realized price drop vs expected dividend (carry)
@@ -293,11 +293,11 @@ def fig_volume_orderflow(mkt: pd.DataFrame) -> None:
     ax_a.set_ylim(bottom=0)
     ax_a.legend(loc="upper right")
 
-    # B. order-flow imbalance
-    draw_bars(ax_b, mkt, "order_flow_imbalance")
-    ax_b.set_title("B. Order-flow imbalance", loc="left")
-    ax_b.set_ylabel(r"$(V^{buy} - V^{sell})\,/\,(V^{buy} + V^{sell})$")
-    ax_b.axhline(0, color="0.6", lw=0.8, zorder=1)
+    # B. |OFI| (same object as T3): one-sidedness, not signed flow
+    draw_bars(ax_b, mkt, "abs_order_flow_imbalance")
+    ax_b.set_title("B. Absolute order-flow imbalance", loc="left")
+    ax_b.set_ylabel(r"$|V^{buy} - V^{sell}|\,/\,(V^{buy} + V^{sell})$")
+    ax_b.set_ylim(bottom=0)
 
     # C. limit-order activity: submissions and cancellations per market-day
     # (left axis) and the share of passive limit orders among all order
