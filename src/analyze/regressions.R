@@ -2,18 +2,17 @@
 # Does Trading Gamification Fuel Bubbles?
 # Chapkovski, Goswami, Işık, Zoican (2026)
 # Date created: 03-09-2026
-# Date last modified: 04-09-2026
+# Date last modified: 14-09-2026
 # ============================================================
 # Regression tables mirroring the figures (src/analyze/figures.py):
+#   Table 0        Descriptive statistics (see descriptive_statistics.R)
 #   Table 1  fig1  Mispricing (market x day)
-#   Table 2  fig2  Liquidity: spreads, price impact, depth, volatility
-#   Table 3  fig3  Volume, order flow, order composition, churn
-#   Table 4  fig5  Liquidity provision mechanism
-#   Table 5  fig6  Volume share by trader type (market x day)
-#   Table 5b fig6  Profits by trader type
-#   Table 6  fig7  Forecast accuracy and bias
-#   Table 7  fig8  Bubble incidence (market-rep counts)
-#   Table 8  ---   Error correction (gap x gamified; see error_correction.py)
+#   Table 2  fig2  Bubble incidence (market-rep counts)
+#   Table 3  fig3  Volume, |OFI|, order composition, churn
+#   Table 4  fig4  Liquidity: quoted / effective / impact; depth, improving, recovery
+#   Table 5  fig5  Share of traders by type
+#   Table 5b fig5  Profits by trader type
+#   Table 6  fig6  Gini; relative wealth by financial literacy
 #
 # Sample (as in the figures): GHP vs NG market-reps only; outlier groups
 # 20260520_PM/ng1 and 20280904/ghp1 excluded. Day-level panels wherever the outcome varies by
@@ -36,7 +35,7 @@
 #
 # Sources:  data/processed/market_day_panel_full.csv
 #           data/processed/trader_day_panel_full.csv
-# Outputs:  output/tables/t1_mispricing.tex ... t8_error_correction.tex
+# Outputs:  output/tables/t1_mispricing.tex ... t6_gini_wealth.tex
 # ============================================================
 library(conflicted)
 library(tidyverse)
@@ -109,7 +108,14 @@ mkt <- mkt_day %>%
 
 # ── TRADER CROSS-SECTION (final relative wealth, day 15) ──────────────────────
 trader_final <- trader_day %>%
-  filter(trading_day == 15)
+  filter(trading_day == 15) %>%
+  mutate(
+    type_feedback     = as.integer(trader_type == "feedback"),
+    type_speculator   = as.integer(trader_type == "speculator"),
+    type_fundamental  = as.integer(trader_type == "fundamental"),
+    type_market_maker = as.integer(trader_type == "market_maker"),
+    type_other        = as.integer(trader_type == "other")
+  )
 
 # ── NG-CENTERED FE (intercept = unconditional NG mean) ────────────────────────
 # `| fe` absorbs the intercept. `i(fe)` makes it the NG mean in the omitted
@@ -215,11 +221,15 @@ setFixest_dict(c(
   rv_mid                    = "Midquote volatility",
   n_trades_market           = "Trades",
   n_limit_orders            = "Limit orders submitted",
+  n_cancels                 = "Cancellations",
   share_limit_orders        = "Share limit orders",
   cancel_to_order           = "Cancel-to-order",
   churn                     = "Intraday churn",
   gini                      = "Gini",
   rel_wealth                = "Relative wealth",
+  above_median_literacy     = "Above-median literacy",
+  "gamified:above_median_literacy" = "Gamified $\\times$ Above-median literacy",
+  "above_median_literacy:gamified" = "Gamified $\\times$ Above-median literacy",
   n_improving_adds          = "Spread-improving orders",
   share_improving_adds      = "Share improving",
   time_to_same_side_order_s = "Order replenishment (s)",
@@ -233,6 +243,11 @@ setFixest_dict(c(
   n_bubble_runs             = "Bubble episodes",
   n_surges                  = "Surges",
   n_crashes                 = "Crashes",
+  type_feedback             = "Share feedback",
+  type_speculator           = "Share speculators",
+  type_fundamental          = "Share fundamentalists",
+  type_market_maker         = "Share market makers",
+  type_other                = "Share unclassified",
   share_market_maker        = "Share market makers",
   share_feedback            = "Share feedback",
   share_speculator          = "Share speculators",
@@ -296,12 +311,12 @@ write_table <- function(models, title, headers, file, order = NULL, drop = NULL,
 # FE dummies are NG-centered: constant = unconditional NG mean.
 # No market FE: treatment is constant within market.
 # ============================================================
-t1_1 <- ols("abs_mispricing_ratio", g(), mkt_day, fe = "repetition")
-t1_2 <- ols("abs_mispricing_ratio", g(), mkt_day, fe = c("repetition", "trading_day"))
-t1_3 <- ols("rad",                   g(), mkt_day, fe = "repetition")
-t1_4 <- ols("rad",                   g(), mkt_day, fe = c("repetition", "trading_day"))
-t1_5 <- ols("avg_abs_mispricing",    g(), mkt_day, fe = "repetition")
-t1_6 <- ols("avg_abs_mispricing",    g(), mkt_day, fe = c("repetition", "trading_day"))
+t1_1 <- ols("avg_abs_mispricing",    g(), mkt_day, fe = "repetition")
+t1_2 <- ols("avg_abs_mispricing",    g(), mkt_day, fe = c("repetition", "trading_day"))
+t1_3 <- ols("abs_mispricing_ratio",  g(), mkt_day, fe = "repetition")
+t1_4 <- ols("abs_mispricing_ratio",  g(), mkt_day, fe = c("repetition", "trading_day"))
+t1_5 <- ols("rad",                   g(), mkt_day, fe = "repetition")
+t1_6 <- ols("rad",                   g(), mkt_day, fe = c("repetition", "trading_day"))
 
 write_table(
   list(t1_1, t1_2, t1_3, t1_4, t1_5, t1_6),
@@ -315,21 +330,40 @@ write_table(
 )
 
 # ============================================================
-# Table 2 (fig 2): Liquidity — market x day, full FE
-# Spreads/impact relative to midpoint; effective = realized + impact
+# Table 2 (fig 2): Bubble incidence — market-rep counts
 # ============================================================
-t2_1 <- ols("rel_quoted_spread",   g(), mkt_day, fe = c("repetition", "trading_day"))
-t2_2 <- ols("rel_eff_spread",      g(), mkt_day, fe = c("repetition", "trading_day"))
-t2_3 <- ols("rel_realized_spread", g(), mkt_day, fe = c("repetition", "trading_day"))
-t2_4 <- ols("rel_price_impact",    g(), mkt_day, fe = c("repetition", "trading_day"))
-t2_5 <- ols("depth_best",          g(), mkt_day, fe = c("repetition", "trading_day"))
-t2_6 <- ols("rv_mid",              g(), mkt_day, fe = c("repetition", "trading_day"))
+t2_1 <- ols("n_bubble_days", g(), mkt)
+t2_2 <- ols("n_bubble_days", g(), mkt, fe = "repetition")
+t2_3 <- ols("n_bubble_runs", g(), mkt, fe = "repetition")
+t2_4 <- ols("n_surges",      g(), mkt, fe = "repetition")
+t2_5 <- ols("n_crashes",     g(), mkt, fe = "repetition")
 
 write_table(
-  list(t2_1, t2_2, t2_3, t2_4, t2_5, t2_6),
-  title = "Gamification and Liquidity",
+  list(t2_1, t2_2, t2_3, t2_4, t2_5),
+  title = "Gamification and Bubble Incidence",
+  headers = list("Bubble flags" = 5),
+  file = "t2_bubble_incidence.tex",
+  extralines = list(
+    "_Repetition dummy" = c("", "Yes", "Yes", "Yes", "Yes")
+  )
+)
+
+# ============================================================
+# Table 3 (fig 3): Volume, order flow, and order composition
+# ============================================================
+.t3_fe <- c("repetition", "trading_day")
+t3_1 <- ols("n_trades_market",          g(), mkt_day, fe = .t3_fe)
+t3_2 <- ols("abs_order_flow_imbalance", g(), mkt_day, fe = .t3_fe)
+t3_3 <- ols("n_limit_orders",           g(), mkt_day, fe = .t3_fe)
+t3_4 <- ols("n_cancels",                g(), mkt_day, fe = .t3_fe)
+t3_5 <- ols("share_limit_orders",       g(), mkt_day, fe = .t3_fe)
+t3_6 <- ols("churn",                    g(), mkt_day, fe = .t3_fe)
+
+write_table(
+  list(t3_1, t3_2, t3_3, t3_4, t3_5, t3_6),
+  title = "Gamification, Trading Volume, and Order Flow",
   headers = NULL,
-  file = "t2_liquidity.tex",
+  file = "t3_volume_orderflow.tex",
   extralines = list(
     "_Repetition dummy"    = rep("Yes", 6),
     "_Trading-day dummies" = rep("Yes", 6)
@@ -337,178 +371,99 @@ write_table(
 )
 
 # ============================================================
-# Table 3 (fig 3): Volume, order flow, and order composition
+# Table 4 (fig 4): Liquidity — market x day, full FE
+# Top row of the figure: quoted / effective / impact.
+# Bottom row: depth, spread-improving adds, spread recovery.
 # ============================================================
-t3_1 <- ols("n_trades_market",          g(), mkt_day, fe = c("repetition", "trading_day"))
-t3_2 <- ols("abs_order_flow_imbalance", g(), mkt_day, fe = c("repetition", "trading_day"))
-t3_3 <- ols("churn",                    g(), mkt_day, fe = c("repetition", "trading_day"))
-t3_4 <- ols("n_limit_orders",           g(), mkt_day, fe = c("repetition", "trading_day"))
-t3_5 <- ols("share_limit_orders",       g(), mkt_day, fe = c("repetition", "trading_day"))
-
-write_table(
-  list(t3_1, t3_2, t3_3, t3_4, t3_5),
-  title = "Gamification, Trading Volume, and Order Flow",
-  headers = NULL,
-  file = "t3_volume_orderflow.tex",
-  extralines = list(
-    "_Repetition dummy"    = rep("Yes", 5),
-    "_Trading-day dummies" = rep("Yes", 5)
-  )
-)
-
-# ============================================================
-# Table 4 (fig 5): Liquidity provision mechanism — market x day
-# Each outcome: trading-day dummies, then trading-day + repetition.
-# Replenishment = median seconds to the next same-side limit order.
-# ============================================================
-t4_1 <- ols("n_improving_adds",          g(), mkt_day, fe = "trading_day")
-t4_2 <- ols("n_improving_adds",          g(), mkt_day, fe = c("trading_day", "repetition"))
-t4_3 <- ols("time_to_same_side_order_s", g(), mkt_day, fe = "trading_day")
-t4_4 <- ols("time_to_same_side_order_s", g(), mkt_day, fe = c("trading_day", "repetition"))
-t4_5 <- ols("spread_recovery_s",         g(), mkt_day, fe = "trading_day")
-t4_6 <- ols("spread_recovery_s",         g(), mkt_day, fe = c("trading_day", "repetition"))
+.t4_fe <- c("repetition", "trading_day")
+t4_1 <- ols("rel_quoted_spread",  g(), mkt_day, fe = .t4_fe)
+t4_2 <- ols("rel_eff_spread",     g(), mkt_day, fe = .t4_fe)
+t4_3 <- ols("rel_price_impact",   g(), mkt_day, fe = .t4_fe)
+t4_4 <- ols("depth_best",         g(), mkt_day, fe = .t4_fe)
+t4_5 <- ols("n_improving_adds",   g(), mkt_day, fe = .t4_fe)
+t4_6 <- ols("spread_recovery_s",  g(), mkt_day, fe = .t4_fe)
 
 write_table(
   list(t4_1, t4_2, t4_3, t4_4, t4_5, t4_6),
-  title = "Gamification and Liquidity Provision",
+  title = "Gamification and Liquidity",
   headers = NULL,
-  file = "t4_liquidity_provision.tex",
+  file = "t4_liquidity.tex",
   extralines = list(
-    "_Repetition dummy"    = c("", "Yes", "", "Yes", "", "Yes"),
+    "_Repetition dummy"    = rep("Yes", 6),
     "_Trading-day dummies" = rep("Yes", 6)
   )
 )
 
 # ============================================================
-# Table 5 (fig 6): Volume by trader type — market x day
-# All five mutually exclusive types. Each type: volume share, then
-# gross trades (buys+sells). Single FE set (day + repetition).
+# Table 5 (fig 5A): Share of traders by type — trader-market
+# Linear probability of each mutually exclusive type. Constant =
+# NG share of that type. Type order matches the figure.
 # ============================================================
-.t5_fe <- c("trading_day", "repetition")
-t5_1 <- ols("share_vol_market_maker", g(), mkt_day, fe = .t5_fe)
-t5_2 <- ols("vol_market_maker",       g(), mkt_day, fe = .t5_fe)
-t5_3 <- ols("share_vol_fundamental",  g(), mkt_day, fe = .t5_fe)
-t5_4 <- ols("vol_fundamental",        g(), mkt_day, fe = .t5_fe)
-t5_5 <- ols("share_vol_feedback",     g(), mkt_day, fe = .t5_fe)
-t5_6 <- ols("vol_feedback",           g(), mkt_day, fe = .t5_fe)
-t5_7 <- ols("share_vol_speculator",   g(), mkt_day, fe = .t5_fe)
-t5_8 <- ols("vol_speculator",         g(), mkt_day, fe = .t5_fe)
-t5_9 <- ols("share_vol_other",        g(), mkt_day, fe = .t5_fe)
-t5_10 <- ols("vol_other",             g(), mkt_day, fe = .t5_fe)
+t5_1 <- ols("type_feedback",     g(), trader_final, fe = "repetition")
+t5_2 <- ols("type_speculator",   g(), trader_final, fe = "repetition")
+t5_3 <- ols("type_fundamental",  g(), trader_final, fe = "repetition")
+t5_4 <- ols("type_market_maker", g(), trader_final, fe = "repetition")
+t5_5 <- ols("type_other",        g(), trader_final, fe = "repetition")
 
 write_table(
-  list(t5_1, t5_2, t5_3, t5_4, t5_5, t5_6, t5_7, t5_8, t5_9, t5_10),
-  title = "Gamification and Trading Volume by Type",
-  headers = rep(c("Share", "Trades"), 5),
+  list(t5_1, t5_2, t5_3, t5_4, t5_5),
+  title = "Gamification and Trader Types",
+  headers = NULL,
   file = "t5_trader_types.tex",
   extralines = list(
-    "_Repetition dummy"    = rep("Yes", 10),
-    "_Trading-day dummies" = rep("Yes", 10)
+    "_Repetition dummy" = rep("Yes", 5)
   )
 )
 
 # ============================================================
-# Table 5b (fig 6, panel C): Profits by trader type
-# Same column / FE layout as Table 5. Outcome is day-15 relative wealth
-# of traders of that type (fig 6C). Constant = NG mean payoff of the type.
+# Table 5b (fig 5B): Profits by trader type
+# Day-15 relative wealth of traders of that type. Constant = NG mean
+# payoff of the type. Type order matches the figure.
 # ============================================================
 .type_payoff <- function(type, name) {
   d <- subset(trader_final, trader_type == type)
   d[[name]] <- d$rel_wealth
   d
 }
-mm   <- .type_payoff("market_maker", "payoff_mm")
-fund <- .type_payoff("fundamental",  "payoff_fundamental")
 fb   <- .type_payoff("feedback",     "payoff_feedback")
 sp   <- .type_payoff("speculator",   "payoff_speculator")
+fund <- .type_payoff("fundamental",  "payoff_fundamental")
+mm   <- .type_payoff("market_maker", "payoff_mm")
 oth  <- .type_payoff("other",        "payoff_other")
 
-t5b_1 <- ols("payoff_mm",          g(), mm)
-t5b_2 <- ols("payoff_mm",          g(), mm,   fe = "repetition")
+t5b_1 <- ols("payoff_feedback",    g(), fb,   fe = "repetition")
+t5b_2 <- ols("payoff_speculator",  g(), sp,   fe = "repetition")
 t5b_3 <- ols("payoff_fundamental", g(), fund, fe = "repetition")
-t5b_4 <- ols("payoff_feedback",    g(), fb,   fe = "repetition")
-t5b_5 <- ols("payoff_speculator",  g(), sp,   fe = "repetition")
-t5b_6 <- ols("payoff_other",       g(), oth,  fe = "repetition")
+t5b_4 <- ols("payoff_mm",          g(), mm,   fe = "repetition")
+t5b_5 <- ols("payoff_other",       g(), oth,  fe = "repetition")
 
 write_table(
-  list(t5b_1, t5b_2, t5b_3, t5b_4, t5b_5, t5b_6),
+  list(t5b_1, t5b_2, t5b_3, t5b_4, t5b_5),
   title = "Gamification and Trading Profits by Type",
-  headers = list("Market makers" = 2, "Directional types" = 4),
+  headers = NULL,
   file = "t5b_type_profits.tex",
   extralines = list(
-    "_Repetition dummy" = c("", "Yes", "Yes", "Yes", "Yes", "Yes")
+    "_Repetition dummy" = rep("Yes", 5)
   )
 )
 
 # ============================================================
-# Table 6 (fig 7): Forecast accuracy and bias — trader x day
-# Forecasts elicited on days 3, 6, 9, 12 (others are NA)
+# Table 6 (fig 6): Gini (market x day) and relative wealth by literacy
 # ============================================================
-t6_1 <- ols("forecast_err_price",  g(),                 trader_day, fe = "trading_day")
-t6_2 <- ols("forecast_err_price",  g(),                 trader_day, fe = c("trading_day", "repetition"))
-t6_3 <- ols("forecast_err_fund",   g(),                 trader_day, fe = c("trading_day", "repetition"))
-t6_4 <- ols("forecast_bias_fund",  g(),                 trader_day, fe = "trading_day")
-t6_5 <- ols("forecast_bias_fund",  g(),                 trader_day, fe = c("trading_day", "repetition"))
-t6_6 <- ols("forecast_bias_fund",  g("gamified * late"), trader_day, fe = c("trading_day", "repetition"))
+t6_1 <- ols("gini",       g(), mkt_day, fe = "trading_day")
+t6_2 <- ols("gini",       g(), mkt_day, fe = c("trading_day", "repetition"))
+t6_3 <- ols("rel_wealth", g("gamified * above_median_literacy"),
+            trader_final, fe = "repetition")
 
 write_table(
-  list(t6_1, t6_2, t6_3, t6_4, t6_5, t6_6),
-  title = "Gamification and Price Forecasts",
-  headers = list("Accuracy" = 3, "Bias vs fundamental" = 3),
-  file = "t6_forecasts.tex",
+  list(t6_1, t6_2, t6_3),
+  title = "Gamification, Inequality, and Financial Literacy",
+  headers = NULL,
+  file = "t6_gini_wealth.tex",
+  order = c("Gamified$", "Above-median", "Gamified.*Above"),
   extralines = list(
-    "_Repetition dummy"    = c("", "Yes", "Yes", "", "Yes", "Yes"),
-    "_Trading-day dummies" = rep("Yes", 6)
-  )
-)
-
-# ============================================================
-# Table 7 (fig 8): Bubble incidence — market-rep counts
-# ============================================================
-t7_1 <- ols("n_bubble_days", g(), mkt)
-t7_2 <- ols("n_bubble_days", g(), mkt, fe = "repetition")
-t7_3 <- ols("n_bubble_runs", g(), mkt, fe = "repetition")
-t7_4 <- ols("n_surges",      g(), mkt, fe = "repetition")
-t7_5 <- ols("n_crashes",     g(), mkt, fe = "repetition")
-t7_6 <- ols("n_trades",      g(), mkt, fe = "repetition")
-
-write_table(
-  list(t7_1, t7_2, t7_3, t7_4, t7_5, t7_6),
-  title = "Gamification and Bubble Incidence",
-  headers = list("Bubble flags" = 5, "Volume" = 1),
-  file = "t7_bubble_incidence.tex",
-  extralines = list(
-    "_Repetition dummy" = c("", "Yes", "Yes", "Yes", "Yes", "Yes")
-  )
-)
-
-# ============================================================
-# Table 8: Error correction — market x day
-# ret_next = next-day log price change; gap = (P - v_t)/vbar.
-# gap < 0 slope = convergence force; gap x gamified > 0 = switched off.
-# Gap and OFI are NG-centered, so the constant is the NG mean of ret_next.
-# ============================================================
-t8_1 <- ols("ret_next", g("fundamental_gap * gamified"), mkt_day)
-t8_2 <- ols("ret_next", g("fundamental_gap * gamified + order_flow_imbalance * gamified"),
-            mkt_day)
-t8_3 <- ols("ret_next", g("fundamental_gap * gamified"), mkt_day, fe = "trading_day")
-t8_4 <- ols("ret_next", g("fundamental_gap * gamified + order_flow_imbalance * gamified"),
-            mkt_day, fe = "trading_day")
-t8_5 <- ols("ret_next", g("fundamental_gap * gamified"),
-            mkt_day, fe = c("trading_day", "repetition"))
-t8_6 <- ols("ret_next", g("fundamental_gap * gamified + order_flow_imbalance * gamified"),
-            mkt_day, fe = c("trading_day", "repetition"))
-
-write_table(
-  list(t8_1, t8_2, t8_3, t8_4, t8_5, t8_6),
-  title = "Gamification Switches Off Error Correction",
-  headers = list("Pooled" = 2, "Day FE" = 2, "Day + Repetition FE" = 2),
-  file = "t8_error_correction.tex",
-  order = c("^Gap$", "Gap .*Gamified", "^OFI$", "OFI .*Gamified", "Gamified$",
-            "Finance course"),
-  extralines = list(
-    "_Repetition dummy"    = c("", "", "", "", "Yes", "Yes"),
-    "_Trading-day dummies" = c("", "", "Yes", "Yes", "Yes", "Yes")
+    "_Repetition dummy"    = c("", "Yes", "Yes"),
+    "_Trading-day dummies" = c("Yes", "Yes", "")
   )
 )
 

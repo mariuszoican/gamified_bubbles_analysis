@@ -1,24 +1,24 @@
 \begingroup
 \centering
-\begin{tabular}{lccccc}
+\begin{tabular}{lcccccc}
    \tabularnewline \midrule \midrule
-   Dependent Variables: & Trades        & $|$OFI$|$      & Intraday churn & Limit orders submitted & Share limit orders\\  
-   Model:               & (1)           & (2)            & (3)            & (4)                    & (5)\\  
+   Dependent Variables: & Trades        & $|$OFI$|$      & Limit orders submitted & Cancellations  & Share limit orders & Intraday churn\\  
+   Model:               & (1)           & (2)            & (3)                    & (4)            & (5)                & (6)\\  
    \midrule
    \emph{Variables}\\
-   Gamified             & 3.008$^{***}$ & -0.079$^{***}$ & 0.043$^{***}$  & 9.330$^{***}$          & -0.017$^{*}$\\   
-                        & (0.561)       & (0.029)        & (0.014)        & (1.684)                & (0.010)\\   
-   Constant             & 7.841$^{***}$ & 0.553$^{***}$  & 0.147$^{***}$  & 20.552$^{***}$         & 0.733$^{***}$\\   
-                        & (0.363)       & (0.023)        & (0.011)        & (0.769)                & (0.007)\\   
+   Gamified             & 3.008$^{***}$ & -0.079$^{***}$ & 9.330$^{***}$          & 4.502$^{***}$  & -0.017$^{*}$       & 0.043$^{***}$\\   
+                        & (0.561)       & (0.029)        & (1.684)                & (1.326)        & (0.010)            & (0.014)\\   
+   Constant             & 7.841$^{***}$ & 0.553$^{***}$  & 20.552$^{***}$         & 10.507$^{***}$ & 0.733$^{***}$      & 0.147$^{***}$\\   
+                        & (0.363)       & (0.023)        & (0.769)                & (0.508)        & (0.007)            & (0.011)\\   
    \midrule
    \emph{Fit statistics}\\
-   Observations         & 600           & 594            & 594            & 600                    & 600\\  
-   R$^2$                & 0.09          & 0.03           & 0.03           & 0.06                   & 0.05\\  
-   Repetition dummy     & Yes           & Yes            & Yes            & Yes                    & Yes\\  
-   Trading-day dummies  & Yes           & Yes            & Yes            & Yes                    & Yes\\  
+   Observations         & 600           & 594            & 600                    & 600            & 600                & 594\\  
+   R$^2$                & 0.09          & 0.03           & 0.06                   & 0.03           & 0.05               & 0.03\\  
+   Repetition dummy     & Yes           & Yes            & Yes                    & Yes            & Yes                & Yes\\  
+   Trading-day dummies  & Yes           & Yes            & Yes                    & Yes            & Yes                & Yes\\  
    \midrule \midrule
-   \multicolumn{6}{l}{\emph{Heteroskedasticity-robust standard-errors in parentheses}}\\
-   \multicolumn{6}{l}{\emph{Signif. Codes: ***: 0.01, **: 0.05, *: 0.1}}\\
+   \multicolumn{7}{l}{\emph{Heteroskedasticity-robust standard-errors in parentheses}}\\
+   \multicolumn{7}{l}{\emph{Signif. Codes: ***: 0.01, **: 0.05, *: 0.1}}\\
 \end{tabular}
  
 \par \raggedright 
