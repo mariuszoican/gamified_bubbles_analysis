@@ -1,30 +1,22 @@
-\begingroup
-\centering
-\begin{tabular}{lccc}
+\begin{tabular}{lcccc}
    \tabularnewline \midrule \midrule
-   Dependent Variables: & \multicolumn{2}{c}{Gini} & Relative wealth\\
-   Model:                                   & (1)           & (2)           & (3)\\  
+    & \multicolumn{2}{c}{Gini} & \multicolumn{2}{c}{Return} \\ 
+   Model:                                   & (1)           & (2)           & (3)     & (4)\\  
    \midrule
-   \emph{Variables}\\
-   Gamified                                 & 0.011$^{***}$ & 0.011$^{***}$ & -34.725\\   
-                                            & (0.003)       & (0.003)       & (186.517)\\   
-   Gamified $\times$ Above-median literacy  &               &               & 141.225\\   
-                                            &               &               & (264.020)\\   
-   Above-median literacy                    &               &               & 291.734$^{*}$\\   
-                                            &               &               & (164.233)\\   
-   Constant                                 & 0.042$^{***}$ & 0.042$^{***}$ & -162.074\\   
-                                            & (0.002)       & (0.002)       & (138.378)\\   
+   Gamified                                 & 0.011         & 0.003         & -0.007  & -0.007\\   
+                                            & (0.011)       & (0.015)       & (0.040) & (0.044)\\   
+   Above-median literacy                    &               &               & 0.058   & 0.058$^{*}$\\   
+                                            &               &               & (0.036) & (0.033)\\   
+   Gamified $\times$ Above-median literacy  &               &               & 0.028   & 0.028\\   
+                                            &               &               & (0.057) & (0.053)\\   
+   Repetition 2                             &               & -0.003        &         & -0.156$^{***}$\\   
+                                            &               & (0.011)       &         & (0.032)\\   
+   Gamified $\times$ Repetition 2           &               & 0.016         &         & 0.000\\   
+                                            &               & (0.023)       &         & (0.051)\\   
+   Constant                                 & 0.042$^{***}$ & 0.044$^{***}$ & -0.026  & 0.052$^{*}$\\   
+                                            & (0.005)       & (0.008)       & (0.030) & (0.031)\\   
    \midrule
-   \emph{Fit statistics}\\
-   Observations                             & 600           & 600           & 240\\  
-   R$^2$                                    & 0.18          & 0.19          & 0.03\\  
-   Repetition dummy                         &               & Yes           & Yes\\  
-   Trading-day dummies                      & Yes           & Yes           & \\  
+   Observations                             & 40            & 40            & 240     & 240\\  
+   R$^2$                                    & 0.02          & 0.04          & 0.03    & 0.15\\  
    \midrule \midrule
-   \multicolumn{4}{l}{\emph{Heteroskedasticity-robust standard-errors in parentheses}}\\
-   \multicolumn{4}{l}{\emph{Signif. Codes: ***: 0.01, **: 0.05, *: 0.1}}\\
 \end{tabular}
- 
-\par \raggedright 
-Heteroskedasticity-robust (HC1) standard errors in parentheses.
-\par\endgroup

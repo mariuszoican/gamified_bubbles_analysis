@@ -1,26 +1,22 @@
-\begingroup
-\centering
-\begin{tabular}{lcccccc}
+\begin{tabular}{lcccccccc}
    \tabularnewline \midrule \midrule
-   Dependent Variables: & Trades        & $|$OFI$|$      & Limit orders submitted & Cancellations  & Share limit orders & Intraday churn\\  
-   Model:               & (1)           & (2)            & (3)                    & (4)            & (5)                & (6)\\  
+   Dependent Variables: & \multicolumn{2}{c}{Trades} & \multicolumn{2}{c}{$|$OFI$|$} & \multicolumn{2}{c}{Limit orders submitted} & \multicolumn{2}{c}{Intraday churn}\\
+   Model:              & (1)           & (2)           & (3)            & (4)            & (5)            & (6)             & (7)           & (8)\\  
    \midrule
-   \emph{Variables}\\
-   Gamified             & 3.008$^{***}$ & -0.079$^{***}$ & 9.330$^{***}$          & 4.502$^{***}$  & -0.017$^{*}$       & 0.043$^{***}$\\   
-                        & (0.561)       & (0.029)        & (1.684)                & (1.326)        & (0.010)            & (0.014)\\   
-   Constant             & 7.841$^{***}$ & 0.553$^{***}$  & 20.552$^{***}$         & 10.507$^{***}$ & 0.733$^{***}$      & 0.147$^{***}$\\   
-                        & (0.363)       & (0.023)        & (0.769)                & (0.508)        & (0.007)            & (0.011)\\   
+   Gamified            & 3.008$^{***}$ & 2.408$^{***}$ & -0.079$^{***}$ & -0.079$^{***}$ & 9.330$^{***}$  & 7.632$^{***}$   & 0.043$^{***}$ & 0.029$^{**}$\\   
+                       & (0.561)       & (0.525)       & (0.029)        & (0.029)        & (1.684)        & (1.394)         & (0.014)       & (0.014)\\   
+   Overconfidence      &               & 3.926         &                & 0.258          &                & -31.284$^{***}$ &               & 0.062\\   
+                       &               & (3.735)       &                & (0.183)        &                & (8.168)         &               & (0.091)\\   
+   Comprehension quiz  &               & 2.495$^{***}$ &                & -0.022         &                & 12.127$^{***}$  &               & 0.037$^{***}$\\   
+                       &               & (0.452)       &                & (0.020)        &                & (1.890)         &               & (0.010)\\   
+   Age                 &               & -0.012        &                & 0.002          &                & -0.454$^{***}$  &               & 0.002$^{**}$\\   
+                       &               & (0.033)       &                & (0.002)        &                & (0.077)         &               & (0.001)\\   
+   Constant            & 7.841$^{***}$ & 7.841$^{***}$ & 0.553$^{***}$  & 0.553$^{***}$  & 20.552$^{***}$ & 20.552$^{***}$  & 0.147$^{***}$ & 0.147$^{***}$\\   
+                       & (0.363)       & (0.364)       & (0.023)        & (0.023)        & (0.769)        & (0.755)         & (0.011)       & (0.011)\\   
    \midrule
-   \emph{Fit statistics}\\
-   Observations         & 600           & 594            & 600                    & 600            & 600                & 594\\  
-   R$^2$                & 0.09          & 0.03           & 0.06                   & 0.03           & 0.05               & 0.03\\  
-   Repetition dummy     & Yes           & Yes            & Yes                    & Yes            & Yes                & Yes\\  
-   Trading-day dummies  & Yes           & Yes            & Yes                    & Yes            & Yes                & Yes\\  
+   Observations        & 600           & 600           & 594            & 594            & 600            & 600             & 594           & 594\\  
+   R$^2$               & 0.09          & 0.17          & 0.03           & 0.03           & 0.06           & 0.24            & 0.03          & 0.07\\  
+   Repetition dummy    & Yes           & Yes           & Yes            & Yes            & Yes            & Yes             & Yes           & Yes\\  
+   Trading-day dummies & Yes           & Yes           & Yes            & Yes            & Yes            & Yes             & Yes           & Yes\\  
    \midrule \midrule
-   \multicolumn{7}{l}{\emph{Heteroskedasticity-robust standard-errors in parentheses}}\\
-   \multicolumn{7}{l}{\emph{Signif. Codes: ***: 0.01, **: 0.05, *: 0.1}}\\
 \end{tabular}
- 
-\par \raggedright 
-Heteroskedasticity-robust (HC1) standard errors in parentheses.
-\par\endgroup

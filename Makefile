@@ -15,7 +15,7 @@ help:
 	@echo "  make payments ID=20260512 Write data/payments/payments_YYYYMMDD.xlsx"
 	@echo "  make panels              Rebuild interim + full panels for include:true sessions"
 	@echo "  make session ID=20260512 Process one session from config/sessions.yaml"
-	@echo "  make analyze             Run hypothesis_tests.R (writes output/tables/)"
+	@echo "  make analyze             Rebuild current figures and regression tables"
 	@echo "  make explore             Open exploratory sandbox plots"
 	@echo "  make clean-interim       Delete rebuildable data/interim panels"
 
@@ -31,7 +31,10 @@ payments:
 	$(PYTHON) src/build/process_payments.py --session $(ID)
 
 analyze:
-	Rscript src/analyze/hypothesis_tests.R
+	Rscript src/analyze/descriptive_statistics.R
+	Rscript src/analyze/regressions.R
+	$(PYTHON) src/analyze/figures.py
+	$(PYTHON) src/analyze/error_correction.py
 
 explore:
 	$(PYTHON) src/explore/sandbox_data.py

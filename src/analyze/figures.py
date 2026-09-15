@@ -13,8 +13,9 @@ Figures
   2. bubble_incidence      – bubble days, episodes, surges, crashes
   3. volume_orderflow      – volume, |OFI|, limit orders, churn
   4. liquidity             – quoted / effective / impact; depth, improving adds, recovery
-  5. trader_types          – share of traders and payoff by type
-  6. gini_wealth           – Gini day path; payoff by financial literacy
+  5. forecast_hit          – 5% hit rate on next-day close, overall and by day
+  6. trader_types          – headcount share, volume share, and payoff by type
+  7. gini_wealth           – Gini day paths by repetition; payoff by literacy
 
 Confidence intervals are 95% HC1 bands (mean ± 1.96·s/√n), the same
 White SE as the tables. Day-path figures use market-days on that day;
@@ -55,12 +56,12 @@ plt.rcParams.update(
         "font.family": "serif",
         "font.serif": ["Times New Roman", "STIXGeneral", "DejaVu Serif"],
         "mathtext.fontset": "stix",
-        "font.size": 10,
-        "axes.labelsize": 10.5,
-        "axes.titlesize": 11,
-        "legend.fontsize": 9.5,
-        "xtick.labelsize": 9.5,
-        "ytick.labelsize": 9.5,
+        "font.size": 16,
+        "axes.labelsize": 17,
+        "axes.titlesize": 18,
+        "legend.fontsize": 15,
+        "xtick.labelsize": 16,
+        "ytick.labelsize": 16,
         "axes.spines.top": False,
         "axes.spines.right": False,
         "axes.linewidth": 0.8,
@@ -158,13 +159,20 @@ def save(fig, name: str) -> None:
     print(f"saved {FIG_DIR / name}.pdf / .png")
 
 
-TYPE_ORDER = ["feedback", "speculator", "fundamental", "market_maker", "other"]
+TYPE_ORDER = ["market_maker", "feedback", "speculator", "fundamental", "other"]
 TYPE_LABELS = {
     "feedback": "Feedback",
     "speculator": "Speculator",
-    "fundamental": "Fundamentalist",
+    "fundamental": "Fundamental",
     "other": "Unclassified",
     "market_maker": "Market maker",
+}
+SHARE_VOL = {
+    "market_maker": "share_vol_market_maker",
+    "feedback": "share_vol_feedback",
+    "speculator": "share_vol_speculator",
+    "fundamental": "share_vol_fundamental",
+    "other": "share_vol_other",
 }
 
 
@@ -261,13 +269,13 @@ def fig_bubble_incidence(mkt: pd.DataFrame) -> None:
         ("surge", "C. Price surges", "Days flagged per market-rep"),
         ("crash", "D. Price crashes", "Days flagged per market-rep"),
     ]
-    fig, axes = plt.subplots(1, 4, figsize=(12.8, 3.6))
-    for ax, (col, title, ylab) in zip(axes, specs):
+    fig, axes = plt.subplots(2, 2, figsize=(12.0, 6.75))
+    for ax, (col, title, ylab) in zip(axes.ravel(), specs):
         draw_bars(ax, rep, col)
         ax.set_title(title, loc="left")
         ax.set_ylabel(ylab)
         ax.set_ylim(bottom=0)
-    fig.tight_layout(w_pad=2.0)
+    fig.tight_layout(w_pad=2.0, h_pad=1.6)
     save(fig, "fig2_bubble_incidence")
 
 
@@ -276,7 +284,7 @@ def fig_bubble_incidence(mkt: pd.DataFrame) -> None:
 # ----------------------------------------------------------------------
 
 def fig_volume_orderflow(mkt: pd.DataFrame) -> None:
-    fig, axes = plt.subplots(2, 2, figsize=(12.2, 5.8))
+    fig, axes = plt.subplots(2, 2, figsize=(12.0, 7.4))
     (ax_a, ax_b), (ax_c, ax_d) = axes
 
     draw_daypath(ax_a, day_path(mkt, "n_trades_market"))
@@ -287,7 +295,7 @@ def fig_volume_orderflow(mkt: pd.DataFrame) -> None:
 
     draw_bars(ax_b, mkt, "abs_order_flow_imbalance")
     ax_b.set_title("B. Absolute order-flow imbalance", loc="left")
-    ax_b.set_ylabel(r"$|V^{buy} - V^{sell}|\,/\,(V^{buy} + V^{sell})$")
+    ax_b.set_ylabel("Absolute imbalance")
     ax_b.set_ylim(bottom=0)
 
     ax_c2 = ax_c.twinx()
@@ -322,16 +330,16 @@ def fig_volume_orderflow(mkt: pd.DataFrame) -> None:
     ax_c.set_title("C. Limit-order activity", loc="left")
     ax_c.set_ylabel("Orders per market-day")
     ax_c.set_ylim(0, ax_c.get_ylim()[1] * 1.3)
-    ax_c2.set_ylabel("Limit orders, % of orders submitted")
+    ax_c2.set_ylabel("Limit-order share (%)")
     ax_c2.set_ylim(0, 100)
     ax_c2.spines["right"].set_visible(True)
-    ax_c.legend(loc="upper left")
+    ax_c.legend(loc="upper center", ncols=2)
 
     draw_bars(ax_d, mkt, "churn")
     ax_d.set_title("D. Intraday churn", loc="left")
     ax_d.set_ylabel(r"$1 - |B - S|\,/\,(B + S)$ per trader-day")
 
-    fig.tight_layout(w_pad=2.0, h_pad=1.8)
+    fig.tight_layout(w_pad=2.0, h_pad=2.0)
     save(fig, "fig3_volume_orderflow")
 
 
@@ -340,18 +348,15 @@ def fig_volume_orderflow(mkt: pd.DataFrame) -> None:
 # ----------------------------------------------------------------------
 
 def fig_liquidity(mkt: pd.DataFrame) -> None:
-    fig, axes = plt.subplots(2, 3, figsize=(12.5, 6.2))
-    pct = "Percent of prevailing midpoint"
+    fig, axes = plt.subplots(2, 3, figsize=(12.8, 6.6), layout="constrained")
     specs = [
-        ("rel_quoted_spread", "A. Relative quoted spread", pct, 100.0),
-        ("rel_eff_spread", "B. Relative effective spread", pct, 100.0),
-        ("rel_price_impact", "C. Relative price impact", pct, 100.0),
-        ("depth_best", "D. Depth at best quotes",
-         "Shares (bid + ask), time-weighted", 1.0),
+        ("rel_quoted_spread", "A. Relative quoted spread", "% of midpoint", 100.0),
+        ("rel_eff_spread", "B. Relative effective spread", "% of midpoint", 100.0),
+        ("rel_price_impact", "C. Relative price impact", "% of midpoint", 100.0),
+        ("depth_best", "D. Depth at best quotes", "Shares", 1.0),
         ("n_improving_adds", "E. Spread-improving limit orders",
-         "Count per market-day", 1.0),
-        ("spread_recovery_s", "F. Spread recovery after a trade",
-         "Median seconds to pre-trade spread", 1.0),
+         "Orders / day", 1.0),
+        ("spread_recovery_s", "F. Spread recovery after a trade", "Seconds", 1.0),
     ]
     for ax, (col, title, ylab, scale) in zip(axes.ravel(), specs):
         draw_bars(ax, mkt, col, scale=scale)
@@ -362,68 +367,145 @@ def fig_liquidity(mkt: pd.DataFrame) -> None:
             ax.set_ylim(bottom=0)
         elif col == "depth_best":
             ax.set_ylim(bottom=0)
-    fig.tight_layout(w_pad=2.2, h_pad=2.2)
+    fig.set_constrained_layout_pads(w_pad=0.12, h_pad=0.12, wspace=0.12)
     save(fig, "fig4_liquidity")
 
 
 # ----------------------------------------------------------------------
-# Figure 5: trader types — shares and payoffs
+# Figure 5: forecast hit rate (next-day close, 5% band)
 # ----------------------------------------------------------------------
 
-def fig_trader_types(trd: pd.DataFrame) -> None:
-    tm = _trader_types(trd)
-    fig, (ax_a, ax_b) = plt.subplots(1, 2, figsize=(10.8, 4.2))
+FORECAST_DAYS = (3, 6, 9, 12)
+
+
+def _forecast_hits(trd: pd.DataFrame) -> pd.DataFrame:
+    """One row per elicited forecast with a realized next-day close.
+
+    Hit = |F − P_{m,d+1}| / P_{m,d+1} ≤ 0.05, the same band as the
+    forecast bonus. `price_next` is the last transaction on day d+1
+    (carried forward if that day has no trade).
+    """
+    fc = trd[
+        trd["forecast"].notna()
+        & trd["price_next"].notna()
+        & (trd["price_next"] > 0)
+        & trd["trading_day"].isin(FORECAST_DAYS)
+    ].copy()
+    fc["hit"] = (
+        (fc["forecast"] - fc["price_next"]).abs() / fc["price_next"] <= 0.05
+    ).astype(float)
+    return fc
+
+
+def fig_forecast_hit(trd: pd.DataFrame) -> None:
+    fc = _forecast_hits(trd)
+    fig, (ax_a, ax_b) = plt.subplots(1, 2, figsize=(12.0, 4.6))
+
+    draw_bars(ax_a, fc, "hit", scale=100.0)
+    ax_a.set_title("A. Forecast hit rate", loc="left")
+    ax_a.set_ylabel("Percent within 5% of next-day close")
+    ax_a.set_ylim(0, 45)
 
     width = 0.38
-    x = np.arange(len(TYPE_ORDER))
+    x = np.arange(len(FORECAST_DAYS))
     for i, t in enumerate(TREATMENTS):
-        sub = tm[tm["treatment"] == t]
+        sub = fc[fc["treatment"] == t]
         means, cis = [], []
-        for ty in TYPE_ORDER:
-            m, ci = mean_ci((sub["type"] == ty).astype(float), scale=100.0)
-            means.append(m)
-            cis.append(ci)
-        ax_a.bar(
-            x + (i - 0.5) * width, means, width=width * 0.92,
-            color=COLORS[t], alpha=0.85, label=LABELS[t], zorder=2,
-        )
-        ax_a.errorbar(
-            x + (i - 0.5) * width, means, yerr=cis, fmt="none",
-            ecolor="black", elinewidth=1.1, capsize=4, capthick=1.1, zorder=3,
-        )
-    ax_a.set_xticks(x)
-    ax_a.set_xticklabels(
-        [TYPE_LABELS[ty] for ty in TYPE_ORDER], rotation=30, ha="right"
-    )
-    ax_a.set_title("A. Share of traders by type", loc="left")
-    ax_a.set_ylabel("Percent of trader-markets")
-    ax_a.set_ylim(bottom=0)
-    ax_a.legend(loc="upper right")
-
-    for i, t in enumerate(TREATMENTS):
-        sub = tm[tm["treatment"] == t]
-        means, cis = [], []
-        for ty in TYPE_ORDER:
-            m, ci = mean_ci(sub.loc[sub["type"] == ty, "rel_wealth"])
+        for d in FORECAST_DAYS:
+            m, ci = mean_ci(sub.loc[sub["trading_day"] == d, "hit"], scale=100.0)
             means.append(m)
             cis.append(ci)
         ax_b.bar(
             x + (i - 0.5) * width, means, width=width * 0.92,
-            color=COLORS[t], alpha=0.85, zorder=2,
+            color=COLORS[t], alpha=0.85, label=LABELS[t], zorder=2,
         )
         ax_b.errorbar(
             x + (i - 0.5) * width, means, yerr=cis, fmt="none",
             ecolor="black", elinewidth=1.1, capsize=4, capthick=1.1, zorder=3,
         )
-    ax_b.axhline(0, color="0.6", lw=0.8, zorder=1)
     ax_b.set_xticks(x)
-    ax_b.set_xticklabels(
+    ax_b.set_xticklabels([f"Day {d}" for d in FORECAST_DAYS])
+    ax_b.set_title("B. Hit rate by forecast day", loc="left")
+    ax_b.set_ylabel("Percent within 5% of next-day close")
+    ax_b.set_ylim(0, 55)
+    ax_b.legend(loc="upper left")
+
+    fig.tight_layout(w_pad=2.2)
+    save(fig, "fig5_forecast_hit")
+
+
+# ----------------------------------------------------------------------
+# Figure 6: trader types — headcount, volume, and payoffs
+# ----------------------------------------------------------------------
+
+def _type_bars(ax, values, legend: bool = False) -> None:
+    """Grouped treatment bars for each mutually exclusive type."""
+    width = 0.38
+    x = np.arange(len(TYPE_ORDER))
+    for i, t in enumerate(TREATMENTS):
+        means, cis = zip(*(values[t][ty] for ty in TYPE_ORDER))
+        ax.bar(
+            x + (i - 0.5) * width, means, width=width * 0.92,
+            color=COLORS[t], alpha=0.85,
+            label=LABELS[t] if legend else None, zorder=2,
+        )
+        ax.errorbar(
+            x + (i - 0.5) * width, means, yerr=cis, fmt="none",
+            ecolor="black", elinewidth=1.1, capsize=4, capthick=1.1, zorder=3,
+        )
+    ax.set_xticks(x)
+    ax.set_xticklabels(
         [TYPE_LABELS[ty] for ty in TYPE_ORDER], rotation=30, ha="right"
     )
-    ax_b.set_title("B. Payoff by trader type", loc="left")
-    ax_b.set_ylabel("Final wealth relative to market mean\n(exp. currency)")
 
-    fig.tight_layout(w_pad=2.4)
+
+def fig_trader_types(mkt: pd.DataFrame, trd: pd.DataFrame) -> None:
+    tm = _trader_types(trd)
+    headcount = {
+        t: {
+            ty: mean_ci((sub["type"] == ty).astype(float), scale=100.0)
+            for ty in TYPE_ORDER
+        }
+        for t, sub in ((t, tm[tm["treatment"] == t]) for t in TREATMENTS)
+    }
+    volume = {
+        t: {
+            ty: mean_ci(sub[SHARE_VOL[ty]], scale=100.0)
+            for ty in TYPE_ORDER
+        }
+        for t, sub in ((t, mkt[mkt["treatment"] == t]) for t in TREATMENTS)
+    }
+    payoff = {
+        t: {
+            ty: mean_ci(sub.loc[sub["type"] == ty, "rel_wealth"])
+            for ty in TYPE_ORDER
+        }
+        for t, sub in ((t, tm[tm["treatment"] == t]) for t in TREATMENTS)
+    }
+
+    fig = plt.figure(figsize=(12.0, 7.4), layout="constrained")
+    gs = fig.add_gridspec(2, 2, height_ratios=[1.0, 1.05])
+    ax_a = fig.add_subplot(gs[0, 0])
+    ax_b = fig.add_subplot(gs[0, 1])
+    ax_c = fig.add_subplot(gs[1, :])
+
+    _type_bars(ax_a, volume, legend=True)
+    ax_a.set_title("A. Share by volume", loc="left")
+    ax_a.set_ylabel("Percent of daily volume")
+    ax_a.set_ylim(bottom=0)
+    ax_a.legend(loc="upper right")
+
+    _type_bars(ax_b, headcount)
+    ax_b.set_title("B. Share by type", loc="left")
+    ax_b.set_ylabel("Percent of trader-markets")
+    ax_b.set_ylim(bottom=0)
+
+    _type_bars(ax_c, payoff)
+    ax_c.axhline(0, color="0.6", lw=0.8, zorder=1)
+    ax_c.set_title("C. Payoff by trader type", loc="left")
+    ax_c.set_ylabel("Final wealth relative to market mean\n(exp. currency)")
+
+    fig.set_constrained_layout_pads(w_pad=0.10, h_pad=0.12, wspace=0.10)
     save(fig, "fig5_trader_types")
 
 
@@ -432,15 +514,22 @@ def fig_trader_types(trd: pd.DataFrame) -> None:
 # ----------------------------------------------------------------------
 
 def fig_gini_wealth(mkt: pd.DataFrame, trd: pd.DataFrame) -> None:
-    fig, (ax_a, ax_b) = plt.subplots(
-        1, 2, figsize=(11.2, 3.7), gridspec_kw={"width_ratios": [1.15, 1]}
-    )
+    fig = plt.figure(figsize=(9.4, 7.2), layout="constrained")
+    gs = fig.add_gridspec(2, 2, height_ratios=[1, 1.05])
+    ax_a = fig.add_subplot(gs[0, 0])
+    ax_b = fig.add_subplot(gs[0, 1])
+    ax_c = fig.add_subplot(gs[1, :])
 
-    draw_daypath(ax_a, day_path(mkt, "gini"))
-    ax_a.set_title("A. Wealth inequality", loc="left")
-    ax_a.set_ylabel("Gini coefficient of trader wealth")
-    ax_a.set_ylim(bottom=0)
+    for ax, repetition, panel in (
+        (ax_a, 1, "A. Wealth inequality, repetition 1"),
+        (ax_b, 2, "B. Wealth inequality, repetition 2"),
+    ):
+        draw_daypath(ax, day_path(mkt[mkt["repetition"] == repetition], "gini"))
+        ax.set_title(panel, loc="left")
+        ax.set_ylim(bottom=0)
+    ax_a.set_ylabel("Gini coefficient")
     ax_a.legend(loc="upper left")
+    ax_b.set_ylabel("")
 
     traders = (
         trd[trd["trading_day"] == 15]
@@ -466,26 +555,25 @@ def fig_gini_wealth(mkt: pd.DataFrame, trd: pd.DataFrame) -> None:
             m, ci = mean_ci(v)
             means.append(m)
             cis.append(ci)
-        ax_b.bar(
+        ax_c.bar(
             x + (i - 0.5) * width, means, width=width * 0.92,
             color=COLORS[t], alpha=0.85, label=LABELS[t], zorder=2,
         )
-        ax_b.errorbar(
+        ax_c.errorbar(
             x + (i - 0.5) * width, means, yerr=cis, fmt="none",
             ecolor="black", elinewidth=1.1, capsize=4, capthick=1.1, zorder=3,
         )
-    ax_b.set_xticks(x)
-    ax_b.set_xticklabels(
+    ax_c.set_xticks(x)
+    ax_c.set_xticklabels(
         ["Below-median literacy", "Above-median literacy"]
     )
-    ax_b.set_title("B. Relative wealth by financial literacy", loc="left")
-    ax_b.set_ylabel("Final wealth relative to market mean (exp. currency)")
-    ax_b.axhline(0, color="0.6", lw=0.8, zorder=1)
-    lo, hi = ax_b.get_ylim()
-    ax_b.set_ylim(lo * 1.1 if lo < 0 else lo, hi * 1.25)
-    ax_b.legend(loc="upper left", ncols=2)
+    ax_c.set_title("C. Relative wealth by financial literacy", loc="left")
+    ax_c.set_ylabel("Relative wealth (E$)")
+    ax_c.axhline(0, color="0.6", lw=0.8, zorder=1)
+    lo, hi = ax_c.get_ylim()
+    ax_c.set_ylim(lo * 1.1 if lo < 0 else lo, hi * 1.25)
+    ax_c.legend(loc="upper left", ncols=2)
 
-    fig.tight_layout(w_pad=2.2)
     save(fig, "fig6_gini_wealth")
 
 
@@ -503,7 +591,8 @@ def main() -> None:
     fig_bubble_incidence(mkt)
     fig_volume_orderflow(mkt)
     fig_liquidity(mkt)
-    fig_trader_types(trd)
+    fig_forecast_hit(trd)
+    fig_trader_types(mkt, trd)
     fig_gini_wealth(mkt, trd)
 
 

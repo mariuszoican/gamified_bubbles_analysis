@@ -1,26 +1,22 @@
-\begingroup
-\centering
-\begin{tabular}{lcccccc}
+\begin{tabular}{lcccccccccccc}
    \tabularnewline \midrule \midrule
-   Dependent Variables: & Quoted spread  & Effective spread & Price impact & Depth at best & Spread-improving orders & Spread recovery (s)\\  
-   Model:               & (1)            & (2)              & (3)          & (4)           & (5)                     & (6)\\  
+   Dependent Variables: & \multicolumn{2}{c}{Quoted spread} & \multicolumn{2}{c}{Effective spread} & \multicolumn{2}{c}{Price impact} & \multicolumn{2}{c}{Depth at best} & \multicolumn{2}{c}{Spread-improving orders} & \multicolumn{2}{c}{Spread recovery (s)}\\
+   Model:              & (1)            & (2)            & (3)           & (4)           & (5)          & (6)          & (7)           & (8)            & (9)           & (10)            & (11)           & (12)\\  
    \midrule
-   \emph{Variables}\\
-   Gamified             & -0.075$^{***}$ & -0.038           & -0.051       & 1.018$^{***}$ & 2.623$^{***}$           & -6.462\\   
-                        & (0.022)        & (0.024)          & (0.076)      & (0.345)       & (0.582)                 & (3.927)\\   
-   Constant             & 0.241$^{***}$  & 0.156$^{***}$    & 0.167$^{**}$ & 2.901$^{***}$ & 8.007$^{***}$           & 19.410$^{***}$\\   
-                        & (0.016)        & (0.021)          & (0.067)      & (0.067)       & (0.369)                 & (3.184)\\   
+   Gamified            & -0.075$^{***}$ & -0.064$^{***}$ & -0.038        & -0.032        & -0.051       & -0.024       & 1.018$^{***}$ & 0.695$^{***}$  & 2.623$^{***}$ & 2.502$^{***}$   & -6.462         & -7.514$^{*}$\\   
+                       & (0.022)        & (0.022)        & (0.024)       & (0.025)       & (0.076)      & (0.074)      & (0.345)       & (0.257)        & (0.582)       & (0.551)         & (3.927)        & (3.907)\\   
+   Overconfidence      &                & 0.051          &               & -0.060        &              & -0.102       &               & -2.412         &               & -14.032$^{***}$ &                & 15.593\\   
+                       &                & (0.129)        &               & (0.230)       &              & (0.400)      &               & (1.530)        &               & (3.166)         &                & (32.009)\\   
+   Comprehension quiz  &                & -0.023         &               & -0.005        &              & -0.083$^{*}$ &               & 1.804$^{***}$  &               & 2.312$^{***}$   &                & 4.406\\   
+                       &                & (0.016)        &               & (0.015)       &              & (0.044)      &               & (0.511)        &               & (0.517)         &                & (3.605)\\   
+   Age                 &                & -0.003$^{***}$ &               & -0.002$^{*}$  &              & -0.003$^{*}$ &               & -0.044$^{***}$ &               & -0.154$^{***}$  &                & -0.152\\   
+                       &                & (0.001)        &               & (0.001)       &              & (0.002)      &               & (0.014)        &               & (0.034)         &                & (0.163)\\   
+   Constant            & 0.241$^{***}$  & 0.241$^{***}$  & 0.156$^{***}$ & 0.156$^{***}$ & 0.167$^{**}$ & 0.167$^{**}$ & 2.901$^{***}$ & 2.901$^{***}$  & 8.007$^{***}$ & 8.007$^{***}$   & 19.410$^{***}$ & 19.410$^{***}$\\   
+                       & (0.016)        & (0.016)        & (0.021)       & (0.021)       & (0.067)      & (0.067)      & (0.067)       & (0.073)        & (0.369)       & (0.363)         & (3.184)        & (3.190)\\   
    \midrule
-   \emph{Fit statistics}\\
-   Observations         & 594            & 582              & 582          & 594           & 600                     & 567\\  
-   R$^2$                & 0.10           & 0.05             & 0.02         & 0.04          & 0.06                    & 0.05\\  
-   Repetition dummy     & Yes            & Yes              & Yes          & Yes           & Yes                     & Yes\\  
-   Trading-day dummies  & Yes            & Yes              & Yes          & Yes           & Yes                     & Yes\\  
+   Observations        & 594            & 594            & 582           & 582           & 582          & 582          & 594           & 594            & 600           & 600             & 567            & 567\\  
+   R$^2$               & 0.10           & 0.11           & 0.05          & 0.06          & 0.02         & 0.03         & 0.04          & 0.13           & 0.06          & 0.12            & 0.05           & 0.06\\  
+   Repetition dummy    & Yes            & Yes            & Yes           & Yes           & Yes          & Yes          & Yes           & Yes            & Yes           & Yes             & Yes            & Yes\\  
+   Trading-day dummies & Yes            & Yes            & Yes           & Yes           & Yes          & Yes          & Yes           & Yes            & Yes           & Yes             & Yes            & Yes\\  
    \midrule \midrule
-   \multicolumn{7}{l}{\emph{Heteroskedasticity-robust standard-errors in parentheses}}\\
-   \multicolumn{7}{l}{\emph{Signif. Codes: ***: 0.01, **: 0.05, *: 0.1}}\\
 \end{tabular}
- 
-\par \raggedright 
-Heteroskedasticity-robust (HC1) standard errors in parentheses.
-\par\endgroup

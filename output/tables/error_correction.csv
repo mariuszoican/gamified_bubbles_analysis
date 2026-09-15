@@ -1,0 +1,13 @@
+,coef,se,t,spec
+gamified,0.0254,0.0372,0.6825,baseline
+gap,-0.1472,0.0599,-2.4576,baseline
+gap x gamified,0.0453,0.069,0.6567,baseline
+OFI,0.0842,0.0509,1.6535,baseline
+OFI x gamified,0.0014,0.0669,0.0209,baseline
+finance course share,-0.1531,0.0749,-2.0444,baseline
+gamified,0.0308,0.0361,0.8552,day FE + rep
+gap,-0.1086,0.0596,-1.8214,day FE + rep
+gap x gamified,0.0387,0.0666,0.581,day FE + rep
+OFI,0.0663,0.0507,1.3082,day FE + rep
+OFI x gamified,-0.0101,0.0662,-0.1532,day FE + rep
+finance course share,-0.1225,0.0689,-1.777,day FE + rep
