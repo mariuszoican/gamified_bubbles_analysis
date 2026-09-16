@@ -15,7 +15,7 @@ Figures
   4. liquidity             – quoted / effective / impact; depth, improving adds, recovery
   5. forecast_hit          – 5% hit rate on next-day close, overall and by day
   6. trader_types          – headcount share, volume share, and payoff by type
-  7. gini_wealth           – Gini day paths by repetition; payoff by literacy
+  7. gini_wealth           – Gini day paths by repetition; day-15 return by literacy and experience
 
 Confidence intervals are 95% HC1 bands (mean ± 1.96·s/√n), the same
 White SE as the tables. Day-path figures use market-days on that day;
@@ -24,10 +24,12 @@ except fig 2, whose outcomes are market-rep counts. Trader panels use
 trader-markets.
 
 Usage:  python src/analyze/figures.py
+        python src/analyze/figures.py --slides   # 16:9 copies in the slides folder
 """
 
 from __future__ import annotations
 
+import argparse
 from pathlib import Path
 
 import matplotlib
@@ -41,6 +43,17 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[2]
 PROCESSED = ROOT / "data" / "processed"
 FIG_DIR = ROOT / "output" / "figures"
+SLIDES_FIG_DIR = (
+    ROOT.parent / "gamifiedbubbles_paper" / "Slides" / "Figures"
+)
+WIDESCREEN = False
+
+
+def fs(w: float, h: float) -> tuple[float, float]:
+    """Paper figsize, or 16:9 with the same width when --slides."""
+    if WIDESCREEN:
+        return (w, w * 9.0 / 16.0)
+    return (w, h)
 
 TREATMENTS = ["ng", "ghp"]
 LABELS = {"ng": "Non-gamified", "ghp": "Gamified"}
@@ -152,11 +165,16 @@ def draw_bars(ax, df: pd.DataFrame, col: str, scale: float = 1.0) -> None:
 
 
 def save(fig, name: str) -> None:
-    FIG_DIR.mkdir(parents=True, exist_ok=True)
+    dest = SLIDES_FIG_DIR if WIDESCREEN else FIG_DIR
+    dest.mkdir(parents=True, exist_ok=True)
+    # Tight crop is for the paper. Slides keep the 16:9 canvas so the
+    # figure fills the frame instead of leaving a white band.
+    bbox = None if WIDESCREEN else "tight"
     for ext in ("pdf", "png"):
-        fig.savefig(FIG_DIR / f"{name}.{ext}", dpi=300)
+        with plt.rc_context({"savefig.bbox": bbox}):
+            fig.savefig(dest / f"{name}.{ext}", dpi=300, bbox_inches=bbox)
     plt.close(fig)
-    print(f"saved {FIG_DIR / name}.pdf / .png")
+    print(f"saved {dest / name}.pdf / .png")
 
 
 TYPE_ORDER = ["market_maker", "feedback", "speculator", "fundamental", "other"]
@@ -201,7 +219,7 @@ def _trader_types(trd: pd.DataFrame) -> pd.DataFrame:
 # ----------------------------------------------------------------------
 
 def fig_mispricing(mkt: pd.DataFrame) -> None:
-    fig = plt.figure(figsize=(12.5, 8.0), layout="constrained")
+    fig = plt.figure(figsize=fs(12.5, 8.0), layout="constrained")
     gs = fig.add_gridspec(2, 3, height_ratios=[1.0, 1.15])
     axes_top = [fig.add_subplot(gs[0, i]) for i in range(3)]
     ax_d = fig.add_subplot(gs[1, :])
@@ -269,7 +287,7 @@ def fig_bubble_incidence(mkt: pd.DataFrame) -> None:
         ("surge", "C. Price surges", "Days flagged per market-rep"),
         ("crash", "D. Price crashes", "Days flagged per market-rep"),
     ]
-    fig, axes = plt.subplots(2, 2, figsize=(12.0, 6.75))
+    fig, axes = plt.subplots(2, 2, figsize=fs(12.0, 6.75))
     for ax, (col, title, ylab) in zip(axes.ravel(), specs):
         draw_bars(ax, rep, col)
         ax.set_title(title, loc="left")
@@ -284,7 +302,7 @@ def fig_bubble_incidence(mkt: pd.DataFrame) -> None:
 # ----------------------------------------------------------------------
 
 def fig_volume_orderflow(mkt: pd.DataFrame) -> None:
-    fig, axes = plt.subplots(2, 2, figsize=(12.0, 7.4))
+    fig, axes = plt.subplots(2, 2, figsize=fs(12.0, 7.4))
     (ax_a, ax_b), (ax_c, ax_d) = axes
 
     draw_daypath(ax_a, day_path(mkt, "n_trades_market"))
@@ -348,7 +366,7 @@ def fig_volume_orderflow(mkt: pd.DataFrame) -> None:
 # ----------------------------------------------------------------------
 
 def fig_liquidity(mkt: pd.DataFrame) -> None:
-    fig, axes = plt.subplots(2, 3, figsize=(12.8, 6.6), layout="constrained")
+    fig, axes = plt.subplots(2, 3, figsize=fs(12.8, 6.6), layout="constrained")
     specs = [
         ("rel_quoted_spread", "A. Relative quoted spread", "% of midpoint", 100.0),
         ("rel_eff_spread", "B. Relative effective spread", "% of midpoint", 100.0),
@@ -399,7 +417,7 @@ def _forecast_hits(trd: pd.DataFrame) -> pd.DataFrame:
 
 def fig_forecast_hit(trd: pd.DataFrame) -> None:
     fc = _forecast_hits(trd)
-    fig, (ax_a, ax_b) = plt.subplots(1, 2, figsize=(12.0, 4.6))
+    fig, (ax_a, ax_b) = plt.subplots(1, 2, figsize=fs(12.0, 4.6))
 
     draw_bars(ax_a, fc, "hit", scale=100.0)
     ax_a.set_title("A. Forecast hit rate", loc="left")
@@ -483,7 +501,7 @@ def fig_trader_types(mkt: pd.DataFrame, trd: pd.DataFrame) -> None:
         for t, sub in ((t, tm[tm["treatment"] == t]) for t in TREATMENTS)
     }
 
-    fig = plt.figure(figsize=(12.0, 7.4), layout="constrained")
+    fig = plt.figure(figsize=fs(12.0, 7.4), layout="constrained")
     gs = fig.add_gridspec(2, 2, height_ratios=[1.0, 1.05])
     ax_a = fig.add_subplot(gs[0, 0])
     ax_b = fig.add_subplot(gs[0, 1])
@@ -510,15 +528,50 @@ def fig_trader_types(mkt: pd.DataFrame, trd: pd.DataFrame) -> None:
 
 
 # ----------------------------------------------------------------------
-# Figure 6: inequality and payoffs by financial literacy
+# Figure 6: inequality; day-15 returns by literacy and experience
 # ----------------------------------------------------------------------
 
+SPLIT_COLORS = {0: "#9e9e9e", 1: "#1f4e79"}
+
+
+def _split_return_bars(ax, tm: pd.DataFrame, flag: str, hue_labels: list[str]) -> None:
+    """Day-15 return (%) by treatment on the x-axis; demographic split as hue."""
+    width, x = 0.38, np.arange(len(TREATMENTS))
+    for j, val in enumerate((0, 1)):
+        means, cis = [], []
+        for t in TREATMENTS:
+            m, ci = mean_ci(
+                tm.loc[(tm["treatment"] == t) & (tm[flag] == val), "ret"],
+                scale=100.0,
+            )
+            means.append(m)
+            cis.append(ci)
+        ax.bar(
+            x + (j - 0.5) * width, means, width=width * 0.92,
+            color=SPLIT_COLORS[val], alpha=0.90, label=hue_labels[j], zorder=2,
+        )
+        ax.errorbar(
+            x + (j - 0.5) * width, means, yerr=cis, fmt="none",
+            ecolor="black", elinewidth=1.1, capsize=4, capthick=1.1, zorder=3,
+        )
+    ax.set_xticks(x)
+    ax.set_xticklabels([LABELS[t] for t in TREATMENTS])
+    ax.axhline(0, color="0.6", lw=0.8, zorder=1)
+    ax.set_ylabel("Day-15 return (%)")
+    ax.legend(
+        loc="upper center",
+        bbox_to_anchor=(0.5, -0.18),
+        ncol=2,
+        frameon=False,
+        handlelength=1.3,
+        columnspacing=1.2,
+        borderaxespad=0.0,
+    )
+
+
 def fig_gini_wealth(mkt: pd.DataFrame, trd: pd.DataFrame) -> None:
-    fig = plt.figure(figsize=(9.4, 7.2), layout="constrained")
-    gs = fig.add_gridspec(2, 2, height_ratios=[1, 1.05])
-    ax_a = fig.add_subplot(gs[0, 0])
-    ax_b = fig.add_subplot(gs[0, 1])
-    ax_c = fig.add_subplot(gs[1, :])
+    fig, axes = plt.subplots(2, 2, figsize=fs(12.0, 7.15), layout="constrained")
+    (ax_a, ax_b), (ax_c, ax_d) = axes
 
     for ax, repetition, panel in (
         (ax_a, 1, "A. Wealth inequality, repetition 1"),
@@ -529,57 +582,41 @@ def fig_gini_wealth(mkt: pd.DataFrame, trd: pd.DataFrame) -> None:
         ax.set_ylim(bottom=0)
     ax_a.set_ylabel("Gini coefficient")
     ax_a.legend(loc="upper left")
-    ax_b.set_ylabel("")
+    ax_b.set_ylabel("Gini coefficient")
 
-    traders = (
-        trd[trd["trading_day"] == 15]
-        .groupby("participant_code")
-        .agg(
-            treatment=("treatment", "first"),
-            above=("above_median_literacy", "first"),
-            payoff_recon=("rel_wealth", "mean"),
-        )
-        .reset_index()
-        .dropna()
+    tm = trd[trd["trading_day"] == 15].copy()
+    w0 = tm["initial_cash"] + tm["initial_shares"] * 8 * 15
+    tm["ret"] = (tm["wealth_day"] - w0) / w0
+
+    _split_return_bars(
+        ax_c, tm, "above_median_literacy",
+        ["Below-median literacy", "Above-median literacy"],
     )
-    traders["literacy"] = np.where(traders["above"] > 0, "above", "below")
+    ax_c.set_title("C. Return by financial literacy", loc="left")
 
-    width, x = 0.38, np.arange(2)
-    for i, t in enumerate(TREATMENTS):
-        means, cis = [], []
-        for lit in ("below", "above"):
-            v = traders.loc[
-                (traders["treatment"] == t) & (traders["literacy"] == lit),
-                "payoff_recon",
-            ]
-            m, ci = mean_ci(v)
-            means.append(m)
-            cis.append(ci)
-        ax_c.bar(
-            x + (i - 0.5) * width, means, width=width * 0.92,
-            color=COLORS[t], alpha=0.85, label=LABELS[t], zorder=2,
-        )
-        ax_c.errorbar(
-            x + (i - 0.5) * width, means, yerr=cis, fmt="none",
-            ecolor="black", elinewidth=1.1, capsize=4, capthick=1.1, zorder=3,
-        )
-    ax_c.set_xticks(x)
-    ax_c.set_xticklabels(
-        ["Below-median literacy", "Above-median literacy"]
+    _split_return_bars(
+        ax_d, tm, "trading_experience",
+        ["No prior experience", "Prior trading experience"],
     )
-    ax_c.set_title("C. Relative wealth by financial literacy", loc="left")
-    ax_c.set_ylabel("Relative wealth (E$)")
-    ax_c.axhline(0, color="0.6", lw=0.8, zorder=1)
-    lo, hi = ax_c.get_ylim()
-    ax_c.set_ylim(lo * 1.1 if lo < 0 else lo, hi * 1.25)
-    ax_c.legend(loc="upper left", ncols=2)
+    ax_d.set_title("D. Return by trading experience", loc="left")
 
+    fig.set_constrained_layout_pads(w_pad=0.10, h_pad=0.12, wspace=0.10)
     save(fig, "fig6_gini_wealth")
 
 
 # ----------------------------------------------------------------------
 
 def main() -> None:
+    global WIDESCREEN
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--slides",
+        action="store_true",
+        help="Write 16:9 figures to gamifiedbubbles_paper/Slides/Figures/",
+    )
+    args = parser.parse_args()
+    WIDESCREEN = args.slides
+
     mkt = load_market_panel()
     trd = load_trader_panel()
     print(

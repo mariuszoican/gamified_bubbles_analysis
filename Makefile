@@ -1,5 +1,4 @@
-# Gamified Bubbles — analysis pipeline
-# Run from the repo root.
+# Run from gamified_bubbles_analysis/.
 
 PYTHON ?= .venv/bin/python
 ifeq ($(wildcard $(PYTHON)),)
@@ -8,16 +7,26 @@ endif
 
 export PYTHONPATH := src/build
 
-.PHONY: panels session payments analyze explore clean-interim help
+.PHONY: help analyze figures-slides panels session payments clean-interim
 
 help:
-	@echo "Targets:"
-	@echo "  make payments ID=20260512 Write data/payments/payments_YYYYMMDD.xlsx"
-	@echo "  make panels              Rebuild interim + full panels for include:true sessions"
-	@echo "  make session ID=20260512 Process one session from config/sessions.yaml"
-	@echo "  make analyze             Rebuild current figures and regression tables"
-	@echo "  make explore             Open exploratory sandbox plots"
-	@echo "  make clean-interim       Delete rebuildable data/interim panels"
+	@echo "Reproduce the paper tables and figures:"
+	@echo "  make analyze             -> output/tables/*.tex and output/figures/*"
+	@echo ""
+	@echo "Optional:"
+	@echo "  make figures-slides      16:9 copies for the Beamer deck"
+	@echo "  make panels              Rebuild processed panels from raw oTree exports"
+	@echo "  make session ID=20260512 Process one session into data/interim/"
+	@echo "  make payments ID=20260512 Write data/payments/payments_{id}.xlsx"
+	@echo "  make clean-interim       Delete rebuildable data/interim/ panels"
+
+analyze:
+	Rscript src/analyze/descriptive_statistics.R
+	Rscript src/analyze/regressions.R
+	$(PYTHON) src/analyze/figures.py
+
+figures-slides:
+	$(PYTHON) src/analyze/figures.py --slides
 
 panels:
 	$(PYTHON) src/build/build_panels.py
@@ -29,15 +38,6 @@ session:
 payments:
 	@test -n "$(ID)" || (echo "Usage: make payments ID=20260512"; exit 1)
 	$(PYTHON) src/build/process_payments.py --session $(ID)
-
-analyze:
-	Rscript src/analyze/descriptive_statistics.R
-	Rscript src/analyze/regressions.R
-	$(PYTHON) src/analyze/figures.py
-	$(PYTHON) src/analyze/error_correction.py
-
-explore:
-	$(PYTHON) src/explore/sandbox_data.py
 
 clean-interim:
 	rm -rf data/interim/*

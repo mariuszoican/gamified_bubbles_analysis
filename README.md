@@ -1,162 +1,78 @@
 # Gamified Bubbles — analysis
 
-Pipeline for the laboratory experiment in *Trading Gamification and Asset Prices*.
-Raw oTree / trader-bridge exports are turned into trader-day and market-day panels,
-then into hypothesis tests for the paper.
+Replication code for the tables and figures in *Trading Gamification, Asset Prices, and Liquidity*.
+
+The processed panels in `data/processed/` are already built. To refresh every paper table and figure:
+
+```bash
+cd gamified_bubbles_analysis
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+# R packages: tidyverse (dplyr, tidyr, purrr, tibble), fixest, conflicted
+make analyze
+```
+
+Outputs land only in this folder:
+
+| Destination | Files |
+|---|---|
+| `output/tables/` | `t0_sessions.tex`, `t0_demographics.tex`, `t1_mispricing.tex`, `t2_bubble_incidence.tex`, `t3_volume_orderflow.tex`, `t3b_badges.tex`, `t4_liquidity.tex`, `t5_trader_types.tex`, `t6_inequality.tex` |
+| `output/figures/` | `fig1_mispricing` … `fig6_gini_wealth` (PDF + PNG) |
+
+Copy those files into `gamifiedbubbles_paper/Tables/experimental_results/` and `gamifiedbubbles_paper/Figures/` when you want the manuscript to pick them up. Widescreen copies for the slides are a separate command (`make figures-slides`).
+
+## What `make analyze` runs
+
+1. `src/analyze/descriptive_statistics.R` — session counts and cohort balance (`t0_*`)
+2. `src/analyze/regressions.R` — HC1 OLS / FE tables (`t1`–`t6`)
+3. `src/analyze/figures.py` — publication figures
+
+Sample throughout: `ghp` vs `ng` only. Two groups are dropped, matching the paper: `20260520_PM/ng1` and `20280904/ghp1`. Age values outside 15–80 are missing in `t0_demographics` (one 221 entry).
+
+## Paper map
+
+| Paper | File |
+|---|---|
+| Table 0a Session composition | `t0_sessions.tex` |
+| Table 0b Cohort demographics | `t0_demographics.tex` |
+| Figure / Table 1 Mispricing | `fig1_mispricing`, `t1_mispricing.tex` |
+| Figure / Table 2 Bubble incidence | `fig2_bubble_incidence`, `t2_bubble_incidence.tex` |
+| Figure / Table 3 Volume and order flow | `fig3_volume_orderflow`, `t3_volume_orderflow.tex` |
+| Table 3b Badge attainment | `t3b_badges.tex` |
+| Figure / Table 4 Liquidity | `fig4_liquidity`, `t4_liquidity.tex` |
+| Figure 5 Forecast accuracy | `fig5_forecast_hit` |
+| Figure / Table 5 Trader types | `fig5_trader_types`, `t5_trader_types.tex` |
+| Figure / Table 6 Inequality | `fig6_gini_wealth`, `t6_inequality.tex` |
+
+## Optional commands
+
+| Command | What it does |
+|---|---|
+| `make figures-slides` | 16:9 figures → `../gamifiedbubbles_paper/Slides/Figures/` |
+| `make panels` | Rebuild `data/processed/*_full.csv` from `data/raw/` |
+| `make session ID=20260512` | Process one session into `data/interim/` |
+| `make payments ID=20260512` | Write `data/payments/payments_{id}.xlsx` |
+| `make clean-interim` | Delete rebuildable interim panels |
 
 ## Layout
 
 ```
-config/
-  sessions.yaml      # lab-session registry (ids, export dates, oTree codes)
-  parameters.yaml    # design constants (rounds, dividend, σ thresholds, …)
-data/
-  raw/{session_id}/  # immutable oTree dumps — never edit
-  payments/          # payments_{session id}.xlsx (lab folder date)
-  interim/           # per-session panels (rebuildable)
-  processed/         # concatenated analysis sample (*_full.csv)
-  archive/           # pilots / excluded sessions
-src/
-  build/             # Python: process_session → build_panels
-  analyze/           # R: hypothesis_tests.R
-  explore/           # scratch plots
-output/
-  tables/            # TeX tables for the paper
-  figures/
+config/sessions.yaml     lab-session registry
+config/parameters.yaml   design constants
+data/raw/{session_id}/   immutable oTree exports
+data/processed/          analysis panels (inputs to make analyze)
+src/build/               raw → panels, payments
+src/analyze/             tables and figures
+output/tables/
+output/figures/
 ```
 
-## Setup
+## Adding a new lab session
 
-```bash
-cd gamified_bubbles_analysis
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-```
+1. Create `data/raw/YYYYMMDD/` (or `_AM` / `_PM`) and drop the oTree CSVs there. Do not edit files under `data/raw/`.
+2. Register the session in `config/sessions.yaml` (`id`, `export_date` = the date in the CSV names, `oTree_codes`, `include: true`).
+3. `make panels` then `make analyze`.
 
-R packages used by `src/analyze/hypothesis_tests.R`: `tidyverse`, `lfe`, `stargazer`,
-`fixest`, `modelsummary`, `ggplot2`, `ggfixest`, `cowplot`, `latex2exp` (optional:
-`rstudioapi` when sourcing from RStudio).
+Folder date is the lab day; the filename date is the export day. They can differ (e.g. `data/raw/20260520_PM/` holds `*_2026-05-21.csv`). Quote `id` values so YAML does not parse them as integers.
 
-## How to drop new raw data
-
-1. **Create a session folder** under `data/raw/` named by the lab calendar day:
-   - `YYYYMMDD` for a single session that day
-   - `YYYYMMDD_AM` / `YYYYMMDD_PM` when two sessions share a calendar day
-
-2. **Copy the oTree export CSVs into that folder**, keeping the export filenames.
-   Expected files (date stamp = oTree export date, `YYYY-MM-DD`):
-
-   | File | Required for panels? |
-   |---|---|
-   | `intro_YYYY-MM-DD.csv` | yes |
-   | `post_exp_YYYY-MM-DD.csv` | yes |
-   | `trader_bridge_app_YYYY-MM-DD.csv` | yes |
-   | `trader_bridge_app_custom_export_mbo_YYYY-MM-DD.csv` | yes |
-   | `trader_bridge_app_custom_export_mbp1_YYYY-MM-DD.csv` | keep (mechanisms) |
-   | `trader_bridge_app_custom_export_messages_YYYY-MM-DD.csv` | keep (notifications) |
-   | `trader_bridge_app_custom_export_gamification_ui_YYYY-MM-DD.csv` | keep (badges/UI) |
-   | `trader_bridge_app_custom_export_YYYY-MM-DD.csv` | keep |
-   | `PageTimes-YYYY-MM-DD.csv` | optional |
-   | `all_apps_wide_YYYY-MM-DD.csv` | optional |
-
-3. **Watch the export-date vs folder-date mismatch.**
-   Folder = lab day; filename date = when the CSV was exported. They can differ
-   (e.g. `data/raw/20260520_PM/` holds `*_2026-05-21.csv` because the export ran
-   overnight). Always record the **filename** date in the registry.
-
-4. **Register the session** in `config/sessions.yaml`:
-
-   ```yaml
-   - id: 20260601_AM
-     export_date: "2026-06-01"    # must match CSV filename stamp
-     oTree_codes: [abc123xy]      # session.code values to keep
-     include: true                # false → archive / exclude from full panels
-     notes: "1 ghp + 1 ng"
-   ```
-
-5. **Never overwrite** an existing raw folder. New export → new folder (or move the
-   old one under `data/archive/`).
-
-6. **Do not hand-edit files under `data/raw/`.** Fix logic in `src/build/` instead.
-
-## Payments
-
-```bash
-make payments ID=20260512
-```
-
-Writes `data/payments/payments_{session id}.xlsx` using the lab folder date,
-plus a sidecar `session_log_{session id}.yaml`. Completers are people on
-`FinalForProlific` or `Payoff`.
-
-| Column | Source |
-|---|---|
-| `email` | `player.email` |
-| `student_id` | `player.ucid` (falls back to `player.student_id`) |
-| `participation_fee` | `config/parameters.yaml` ($15 show-up) |
-| `experimental_payoff` | `participant.payoff` (E$) × `exchange_rate` (0.003) |
-| `total_payment` | show-up + experimental payoff |
-
-After changing the exchange rate, re-run the same command.
-
-## Analysis flow
-
-```
-data/raw/{id}/
-      │
-      ▼  make session ID=…   or   make panels
-data/interim/{id}/
-  trader_day_panel.csv
-  market_day_panel.csv
-  participant_payments.csv
-      │
-      ▼  (make panels concatenates include:true sessions)
-data/processed/
-  trader_day_panel_full.csv
-  market_day_panel_full.csv
-  participant_payments_full.csv
-      │
-      ▼  make analyze
-output/tables/*.tex
-```
-
-### Commands
-
-| Command | What it does |
-|---|---|
-| `make payments ID=20260512` | Write `data/payments/payments_{id}.xlsx` + session log |
-| `make panels` | Process every `include: true` session, then write `data/processed/*_full.csv` |
-| `make session ID=20260512` | Process one session into `data/interim/` only |
-| `make analyze` | Run `hypothesis_tests.R` → `output/tables/` |
-| `make explore` | Quick seaborn plots against the full panels |
-| `make clean-interim` | Delete rebuildable interim panels |
-
-Equivalent without Make:
-
-```bash
-export PYTHONPATH=src/build
-python src/build/build_panels.py
-python src/build/process_session.py --session 20260512
-Rscript src/analyze/hypothesis_tests.R
-```
-
-## Session registry conventions
-
-- `id` — folder name under `data/raw/` (or `data/archive/` if `raw_root: archive`).
-  Always quote it in YAML (`id: "20260512"`) so it is not parsed as an integer.
-- `export_date` — `YYYY-MM-DD` substring in the CSV filenames.
-- `oTree_codes` — `session.code` values retained; other sessions in the same export are dropped.
-- `include: false` — keep raw for provenance but omit from the analysis sample.
-- Design constants (rounds, dividend, bubble σ, group size, CAD exchange rate) live in
-  `config/parameters.yaml` and are read by `process_session.py`.
-
-## Notes
-
-- Incomplete markets (`group.realized_group_size` ≠ 6) and bot groups are dropped
-  inside `process_session.py`.
-- Training rounds are excluded from the saved panels (`trading_day >= 1` after the
-  training offset).
-- Event streams not yet in the main panels (`messages`, `gamification_ui`, `mbp1`)
-  should still be archived with each raw drop — they are the natural next mechanism
-  panels.
+Incomplete markets (`realized_group_size` ≠ 6), bot groups, and training rounds are dropped in `src/build/process_session.py`.

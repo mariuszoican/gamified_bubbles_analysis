@@ -1,5 +1,6 @@
-# Descriptive statistics for the Results section.
-# Uses the same GHP-versus-NG sample and exclusions as regressions.R.
+# t0_sessions.tex and t0_demographics.tex
+# Same GHP-versus-NG sample as regressions.R / figures.py.
+# Age outside [15, 80] is treated as missing (one 221 entry).
 
 suppressPackageStartupMessages({
   library(dplyr)
@@ -10,7 +11,7 @@ suppressPackageStartupMessages({
   if (length(file_arg) > 0) {
     return(normalizePath(file.path(dirname(sub("^--file=", "", file_arg)), "../..")))
   }
-  if (file.exists("data/processed/market_day_panel_full.csv")) {
+  if (file.exists("data/processed/trader_day_panel_full.csv")) {
     return(normalizePath("."))
   }
   stop("Cannot locate repository root.")
@@ -23,145 +24,116 @@ dir.create(TABLES, recursive = TRUE, showWarnings = FALSE)
 
 EXCLUDE_GROUPS <- c("20260520_PM/ng1", "20280904/ghp1")
 
-mkt_day <- read.csv(file.path(PROCESSED, "market_day_panel_full.csv")) |>
-  filter(treatment %in% c("ng", "ghp"), !(group_label %in% EXCLUDE_GROUPS))
-
-trader_day <- read.csv(file.path(PROCESSED, "trader_day_panel_full.csv")) |>
-  filter(treatment %in% c("ng", "ghp"), !(group_label %in% EXCLUDE_GROUPS))
-
-mkt_rep <- mkt_day |>
-  group_by(market_uuid, treatment) |>
-  summarise(
-    bubble_days = sum(bubble_period, na.rm = TRUE),
-    bubble_episodes = sum(bubble_start, na.rm = TRUE),
-    price_surges = sum(surge, na.rm = TRUE),
-    price_crashes = sum(crash, na.rm = TRUE),
-    total_trades = sum(n_trades_market, na.rm = TRUE),
-    share_market_maker = first(share_market_maker),
-    share_fundamental = first(share_fundamental),
-    share_feedback = first(share_feedback),
-    share_speculator = first(share_speculator),
-    share_other = first(share_other),
-    .groups = "drop"
-  )
-
-trader_final <- trader_day |> filter(trading_day == 15)
-
-stat_row <- function(data, variable, label, scale = 1, unit = "Market-day") {
-  x <- data[[variable]] * scale
-  x <- x[is.finite(x)]
-  q <- quantile(x, c(0.25, 0.50, 0.75), names = FALSE, na.rm = TRUE)
-  data.frame(
-    Measure = label,
-    Unit = unit,
-    N = length(x),
-    Mean = mean(x),
-    SD = sd(x),
-    P25 = q[1],
-    Median = q[2],
-    P75 = q[3],
-    check.names = FALSE
-  )
-}
-
-panel <- function(title) {
-  data.frame(
-    Measure = paste0("\\multicolumn{8}{l}{\\textit{", title, "}}"),
-    Unit = "", N = NA_integer_, Mean = NA_real_, SD = NA_real_,
-    P25 = NA_real_, Median = NA_real_, P75 = NA_real_,
-    check.names = FALSE
-  )
-}
-
-rows <- bind_rows(
-  panel("Panel A. Price efficiency"),
-  stat_row(mkt_day, "avg_abs_mispricing", "Absolute mispricing (E\\$)"),
-  stat_row(mkt_day, "abs_mispricing_ratio", "Absolute mispricing ratio"),
-  stat_row(mkt_day, "rad", "Relative absolute deviation"),
-  stat_row(mkt_rep, "bubble_days", "Bubble days", unit = "Market-repetition"),
-  stat_row(mkt_rep, "bubble_episodes", "Bubble episodes", unit = "Market-repetition"),
-  stat_row(mkt_rep, "price_surges", "Price surges", unit = "Market-repetition"),
-  stat_row(mkt_rep, "price_crashes", "Price crashes", unit = "Market-repetition"),
-  stat_row(mkt_rep, "total_trades", "Total trades", unit = "Market-repetition"),
-
-  panel("Panel B. Trading activity"),
-  stat_row(mkt_day, "n_trades_market", "Trades"),
-  stat_row(mkt_day, "order_flow_imbalance", "Order-flow imbalance"),
-  stat_row(mkt_day, "abs_order_flow_imbalance", "Absolute order-flow imbalance"),
-  stat_row(mkt_day, "n_limit_orders", "Limit orders submitted"),
-  stat_row(mkt_day, "n_cancels", "Cancellations"),
-  stat_row(mkt_day, "share_limit_orders", "Share of orders that are limit orders"),
-  stat_row(mkt_day, "churn", "Intraday churn"),
-
-  panel("Panel C. Liquidity"),
-  stat_row(mkt_day, "rel_quoted_spread", "Relative quoted spread", 100),
-  stat_row(mkt_day, "rel_eff_spread", "Relative effective spread", 100),
-  stat_row(mkt_day, "rel_realized_spread", "Relative realized spread", 100),
-  stat_row(mkt_day, "rel_price_impact", "Relative price impact", 100),
-  stat_row(mkt_day, "depth_best", "Depth at best quotes (shares)"),
-  stat_row(mkt_day, "rv_mid", "Realized midquote volatility"),
-  stat_row(mkt_day, "n_improving_adds", "Spread-improving limit orders"),
-  stat_row(mkt_day, "share_improving_adds", "Share improving the spread", 100),
-  stat_row(mkt_day, "time_to_same_side_order_s", "Order replenishment (seconds)"),
-  stat_row(mkt_day, "spread_recovery_s", "Spread recovery (seconds)"),
-
-  panel("Panel D. Trader types and outcomes"),
-  stat_row(mkt_rep, "share_market_maker", "Trader share: market makers", 100,
-           "Market-repetition"),
-  stat_row(mkt_rep, "share_fundamental", "Trader share: fundamentalists", 100,
-           "Market-repetition"),
-  stat_row(mkt_rep, "share_feedback", "Trader share: feedback traders", 100,
-           "Market-repetition"),
-  stat_row(mkt_rep, "share_speculator", "Trader share: speculators", 100,
-           "Market-repetition"),
-  stat_row(mkt_rep, "share_other", "Trader share: unclassified", 100,
-           "Market-repetition"),
-  stat_row(mkt_day, "share_vol_market_maker", "Volume share: market makers", 100),
-  stat_row(mkt_day, "share_vol_fundamental", "Volume share: fundamentalists", 100),
-  stat_row(mkt_day, "share_vol_feedback", "Volume share: feedback traders", 100),
-  stat_row(mkt_day, "share_vol_speculator", "Volume share: speculators", 100),
-  stat_row(mkt_day, "share_vol_other", "Volume share: unclassified", 100),
-  stat_row(mkt_day, "vol_market_maker", "Gross trades: market makers"),
-  stat_row(mkt_day, "vol_fundamental", "Gross trades: fundamentalists"),
-  stat_row(mkt_day, "vol_feedback", "Gross trades: feedback traders"),
-  stat_row(mkt_day, "vol_speculator", "Gross trades: speculators"),
-  stat_row(mkt_day, "vol_other", "Gross trades: unclassified"),
-  stat_row(filter(trader_final, trader_type == "market_maker"), "rel_wealth",
-           "Relative wealth: market makers (E\\$)", unit = "Trader-repetition"),
-  stat_row(filter(trader_final, trader_type == "fundamental"), "rel_wealth",
-           "Relative wealth: fundamentalists (E\\$)", unit = "Trader-repetition"),
-  stat_row(filter(trader_final, trader_type == "feedback"), "rel_wealth",
-           "Relative wealth: feedback traders (E\\$)", unit = "Trader-repetition"),
-  stat_row(filter(trader_final, trader_type == "speculator"), "rel_wealth",
-           "Relative wealth: speculators (E\\$)", unit = "Trader-repetition"),
-  stat_row(filter(trader_final, trader_type == "other"), "rel_wealth",
-           "Relative wealth: unclassified (E\\$)", unit = "Trader-repetition")
+SESSION_LABELS <- c(
+  "20260512"    = "May 12, 2026",
+  "20260520_PM" = "May 20, 2026",
+  "20260826"    = "August 26, 2026",
+  "20280904"    = "September 4, 2026",
+  "20260910"    = "September 10, 2026",
+  "20260914"    = "September 14, 2026"
 )
 
-fmt <- function(x) {
-  ifelse(is.na(x), "", formatC(x, format = "f", digits = 2, big.mark = ","))
+trader_day <- read.csv(file.path(PROCESSED, "trader_day_panel_full.csv")) %>%
+  filter(treatment %in% c("ng", "ghp"))
+
+roster <- trader_day %>%
+  distinct(participant_code, group_label, session_id, treatment)
+
+# ── Session composition (before data-quality exclusions) ──────────────────────
+session_rows <- vapply(names(SESSION_LABELS), function(id) {
+  sub <- roster %>% filter(session_id == id)
+  ng <- n_distinct(sub$participant_code[sub$treatment == "ng"])
+  g  <- n_distinct(sub$participant_code[sub$treatment == "ghp"])
+  sprintf("%s & %d & %d & %d \\\\", SESSION_LABELS[[id]], ng, g, ng + g)
+}, character(1))
+
+ng_part <- n_distinct(roster$participant_code[roster$treatment == "ng"])
+g_part  <- n_distinct(roster$participant_code[roster$treatment == "ghp"])
+ng_grp  <- n_distinct(roster$group_label[roster$treatment == "ng"])
+g_grp   <- n_distinct(roster$group_label[roster$treatment == "ghp"])
+
+writeLines(c(
+  "\\begin{tabular}{@{}lccc@{}}",
+  "\\midrule \\midrule",
+  "Session & Non-gamified & Gamified & Total \\\\",
+  "\\midrule",
+  session_rows,
+  "\\midrule",
+  sprintf("Participants & %d & %d & %d \\\\", ng_part, g_part, ng_part + g_part),
+  sprintf("Independent groups & %d & %d & %d \\\\", ng_grp, g_grp, ng_grp + g_grp),
+  "\\midrule \\midrule",
+  "\\end{tabular}"
+), file.path(TABLES, "t0_sessions.tex"))
+message("wrote t0_sessions.tex")
+
+# ── Cohort demographics (retained sample) ─────────────────────────────────────
+demo <- roster %>%
+  filter(!(group_label %in% EXCLUDE_GROUPS)) %>%
+  distinct(participant_code, .keep_all = TRUE) %>%
+  left_join(
+    trader_day %>%
+      distinct(
+        participant_code, age, gender_female, finance_course,
+        trading_experience, fin_quiz_score, self_assessment, cq_attempt_count
+      ),
+    by = "participant_code"
+  ) %>%
+  mutate(age = ifelse(age >= 15 & age <= 80, age, NA_real_))
+
+g  <- demo %>% filter(treatment == "ghp")
+ng <- demo %>% filter(treatment == "ng")
+
+fmt2 <- function(x) sprintf("%.2f", x)
+fmt_p <- function(x) sprintf("%.3f", x)
+
+# sd_pad matches the paper's wrapped-label indentation.
+char_row <- function(label, x_ng, x_g, scale = 1, sd_pad = "            ") {
+  tt <- t.test(scale * x_g, scale * x_ng)
+  d <- unname(tt$estimate[1] - tt$estimate[2])
+  c(
+    sprintf(
+      "%s & %s & %s & %s & %s \\\\",
+      label,
+      fmt2(scale * mean(x_ng, na.rm = TRUE)),
+      fmt2(scale * mean(x_g, na.rm = TRUE)),
+      fmt2(d),
+      fmt_p(tt$p.value)
+    ),
+    sprintf(
+      "%s & (%s) & (%s) & (%s) & \\\\",
+      sd_pad,
+      fmt2(scale * sd(x_ng, na.rm = TRUE)),
+      fmt2(scale * sd(x_g, na.rm = TRUE)),
+      fmt2(tt$stderr)
+    )
+  )
 }
 
-tex <- c(
-  "\\begin{tabular}{llrrrrrr}",
-  "\\toprule",
-  "Measure & Observation & $N$ & Mean & SD & P25 & Median & P75 \\\\",
-  "\\midrule"
-)
-
-for (i in seq_len(nrow(rows))) {
-  if (startsWith(rows$Measure[i], "\\multicolumn")) {
-    tex <- c(tex, paste0(rows$Measure[i], " \\\\"))
-  } else {
-    tex <- c(tex, paste(
-      rows$Measure[i], rows$Unit[i], rows$N[i],
-      fmt(rows$Mean[i]), fmt(rows$SD[i]), fmt(rows$P25[i]),
-      fmt(rows$Median[i]), fmt(rows$P75[i]),
-      sep = " & "
-    ) |> paste0(" \\\\"))
-  }
-}
-
-tex <- c(tex, "\\bottomrule", "\\end{tabular}")
-writeLines(tex, file.path(TABLES, "t0_descriptive_statistics.tex"))
-message("wrote t0_descriptive_statistics.tex")
+writeLines(c(
+  "\\begin{tabular}{@{}lcccc@{}}",
+  "\\midrule \\midrule",
+  "Characteristic & Non-gamified & Gamified & Difference & $p$-value \\\\",
+  "\\midrule",
+  char_row("Age (years)", ng$age, g$age),
+  char_row("Female (\\%)", ng$gender_female, g$gender_female, 100),
+  char_row("Finance course (\\%)", ng$finance_course, g$finance_course, 100,
+           "                    "),
+  char_row("Prior trading experience (\\%)", ng$trading_experience,
+           g$trading_experience, 100, "                              "),
+  char_row("Financial-literacy score (\\%)", ng$fin_quiz_score, g$fin_quiz_score,
+           100, "                              "),
+  char_row("Self-assessed financial knowledge", ng$self_assessment,
+           g$self_assessment, 1, "                                    "),
+  char_row("Comprehension-quiz attempts", ng$cq_attempt_count,
+           g$cq_attempt_count, 1, "                            "),
+  "\\midrule",
+  sprintf("Participants & %d & %d & %d & \\\\", nrow(ng), nrow(g), nrow(demo)),
+  sprintf(
+    "Independent groups & %d & %d & %d & \\\\",
+    n_distinct(ng$group_label), n_distinct(g$group_label),
+    n_distinct(demo$group_label)
+  ),
+  "\\midrule \\midrule",
+  "\\end{tabular}"
+), file.path(TABLES, "t0_demographics.tex"))
+message("wrote t0_demographics.tex")

@@ -5,13 +5,14 @@
 # Date last modified: 15-09-2026
 # ============================================================
 # Regression tables mirroring the figures (src/analyze/figures.py):
-#   Table 0        Descriptive statistics (see descriptive_statistics.R)
+#   Table 0        Session counts and demographics (descriptive_statistics.R)
 #   Table 1  fig1  Mispricing (market x day)
 #   Table 2  fig2  Bubble incidence (market-rep counts)
 #   Table 3  fig3  Volume, |OFI|, order composition, churn
+#   Table 3b       Badge attainment (trader × market-rep trade counts)
 #   Table 4  fig4  Liquidity: quoted / effective / impact; depth, improving, recovery
 #   Table 5  fig5  Volume share by trader type (market x day)
-#   Table 6  fig6  Gini; relative wealth by financial literacy
+#   Table 6  fig6  Gini; day-15 return by literacy and experience
 #
 # Sample (as in the figures): GHP vs NG market-reps only; outlier groups
 # 20260520_PM/ng1 and 20280904/ghp1 excluded. Day-level panels wherever the outcome varies by
@@ -34,7 +35,7 @@
 #
 # Sources:  data/processed/market_day_panel_full.csv
 #           data/processed/trader_day_panel_full.csv
-# Outputs:  output/tables/t1_mispricing.tex ... t6_gini_wealth.tex
+# Outputs:  output/tables/t1_mispricing.tex … t6_inequality.tex
 # ============================================================
 library(conflicted)
 library(tidyverse)
@@ -318,8 +319,12 @@ setFixest_dict(c(
   age                       = "Age",
   gender_female             = "Female",
   finance_course            = "Finance course",
+  "gamified:finance_course" = "Gamified $\\times$ Finance course",
+  "finance_course:gamified" = "Gamified $\\times$ Finance course",
   overconfidence            = "Overconfidence",
   trading_experience        = "Trading experience",
+  "gamified:trading_experience" = "Gamified $\\times$ Trading experience",
+  "trading_experience:gamified" = "Gamified $\\times$ Trading experience",
   trading_day               = "Trading day",
   repetition                = "Repetition",
   market_uuid               = "Market",
@@ -415,31 +420,6 @@ write_table(
 )
 
 # ============================================================
-# Table 2b: Fundamental-gap correction — market x day
-# ============================================================
-.gap_rhs <- paste(
-  "gamified", "fundamental_gap", "fundamental_gap:gamified",
-  "order_flow_imbalance", "order_flow_imbalance:gamified",
-  sep = " + "
-)
-t_gap <- pair("ret_next", mkt_day, .t1_fe, extra = .gap_rhs)
-
-write_table(
-  t_gap,
-  title = "Gamification and Fundamental-Gap Correction",
-  headers = NULL,
-  file = "t2_gap_correction.tex",
-  order = c(
-    "Gap$", "Gap.*Gamified", "OFI$", "OFI.*Gamified", "Gamified$",
-    "Overconfidence", "Comprehension quiz", "Age$"
-  ),
-  extralines = list(
-    "_Repetition dummy"    = rep("Yes", 2),
-    "_Trading-day dummies" = rep("Yes", 2)
-  )
-)
-
-# ============================================================
 # Table 3 (fig 3): Volume, order flow, and order composition
 # ============================================================
 .t3_fe <- c("repetition", "trading_day")
@@ -459,6 +439,59 @@ write_table(
     "_Repetition dummy"    = rep("Yes", 8),
     "_Trading-day dummies" = rep("Yes", 8)
   )
+)
+
+# ============================================================
+# Table 3b: Badge attainment — trader × market-rep
+# Thresholds match otree_trader_bridge/data/achievement_badges.yml.
+# The non-gamified column is the counterfactual share at the same
+# executed-trade count. Badges reset each 15-day market.
+# ============================================================
+BADGES <- tibble::tribble(
+  ~badge,      ~trades,
+  "Bronze",    10,
+  "Silver",    15,
+  "Gold",      35,
+  "Platinum",  50,
+  "Diamond",   60
+)
+
+trader_mkt <- trader_day %>%
+  group_by(market_uuid, trader_uuid, gamified) %>%
+  summarise(n_trades = sum(n_buys + n_sells, na.rm = TRUE), .groups = "drop")
+
+g_trades  <- trader_mkt$n_trades[trader_mkt$gamified == 1]
+ng_trades <- trader_mkt$n_trades[trader_mkt$gamified == 0]
+stopifnot(length(g_trades) == 132L, length(ng_trades) == 108L)
+
+pct1 <- function(x) sprintf("%.1f", 100 * x)
+pp1  <- function(x) sprintf("%+.1f", 100 * x)
+
+t3b_rows <- vapply(seq_len(nrow(BADGES)), function(i) {
+  thr <- BADGES$trades[i]
+  g   <- mean(g_trades  >= thr)
+  ng  <- mean(ng_trades >= thr)
+  sprintf(
+    "%-8s & $\\ge %d$ & %s\\%% & %s\\%% & $%s$ \\\\",
+    BADGES$badge[i], thr, pct1(g), pct1(ng), pp1(g - ng)
+  )
+}, character(1))
+
+t3b_tex <- c(
+  "\\begin{tabular}{@{}lcccc@{}}",
+  "\\toprule",
+  "Badge & Trades & Gamified & Non-gamified & Difference (p.p.) \\\\",
+  "\\midrule",
+  t3b_rows,
+  "\\bottomrule",
+  "\\end{tabular}"
+)
+writeLines(t3b_tex, file.path(TABLES, "t3b_badges.tex"))
+message(
+  "wrote t3b_badges.tex  (N_g=", length(g_trades),
+  " mean=", sprintf("%.1f", mean(g_trades)),
+  "; N_ng=", length(ng_trades),
+  " mean=", sprintf("%.1f", mean(ng_trades)), ")"
 )
 
 # ============================================================
@@ -515,7 +548,7 @@ write_table(
 
 # ============================================================
 # Table 6 (fig 6): Gini at the market-repetition level (40 obs);
-# day-15 return by literacy at the trader-market level (240 obs).
+# day-15 return by literacy and by trading experience (240 obs).
 # ============================================================
 t6_1 <- ols("gini", g(), mkt)
 t6_2 <- feols(
@@ -525,20 +558,28 @@ t6_2 <- feols(
 )
 t6_3 <- ols("ret", g("gamified * above_median_literacy"), trader_final)
 t6_4 <- feols(
-  ret ~ gamified * above_median_literacy + gamified * rep2,
+  ret ~ above_median_literacy + gamified:above_median_literacy | market_uuid,
+  data = trader_final,
+  vcov = "HC1"
+)
+t6_5 <- ols("ret", g("gamified * trading_experience"), trader_final)
+t6_6 <- feols(
+  ret ~ trading_experience + gamified:trading_experience | market_uuid,
   data = trader_final,
   vcov = "HC1"
 )
 
 write_table(
-  list(t6_1, t6_2, t6_3, t6_4),
+  list(t6_1, t6_2, t6_3, t6_4, t6_5, t6_6),
   title = "Gamification and Wealth Inequality",
-  headers = list("Gini" = 2, "Return" = 2),
-  file = "t6_gini_wealth.tex",
+  headers = list("Gini" = 2, "Return (literacy)" = 2, "Return (experience)" = 2),
+  file = "t6_inequality.tex",
   order = c(
     "Gamified$",
     "Above-median literacy$",
     "Gamified \\\\times Above-median literacy$",
+    "Trading experience$",
+    "Gamified \\\\times Trading experience$",
     "Repetition 2$",
     "Gamified \\\\times Repetition 2$"
   ),
