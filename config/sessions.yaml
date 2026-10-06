@@ -10,6 +10,9 @@
 #                    from the folder day when the export ran overnight
 #   - oTree_codes:   session.code values to include from those CSVs
 #   - include:       if true, enters data/processed/*_full.csv
+#   - require_final_page: (default true) keep only traders who reached the
+#                    final oTree page; set false to instead require completed
+#                    trading rounds (survey fields may then be NaN)
 #   - notes:         free text for co-authors
 #   - email_overrides / student_id_overrides:
 #                      {participant.code: value} filled at payment time only;
@@ -65,6 +68,13 @@ sessions:
     oTree_codes: [3vx0787i]
     include: true
     notes: "2 ghp + 2 ng. Export also contains ykk5p8z9 (already logged as 20260910)."
+
+  - id: "20261006"
+    export_date: "2026-10-06"
+    oTree_codes: [4uti89ue]
+    include: false
+    require_final_page: false
+    notes: "Special session run in Switzerland, UNINCENTIVIZED (no payments). 7 ng + 6 ghp complete; incomplete ghp (n=2) dropped. All 78 traders finished both market repetitions but 22 left during the exit questionnaire (survey fields NaN), hence require_final_page: false. Export also contains ykk5p8z9, 3vx0787i (already logged) plus test sessions. Excluded from the main sample by default; robustness check via `make robustness ID=20261006`."
 
   - id: "20260505_PILOT"
     export_date: "2026-05-05"

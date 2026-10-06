@@ -18,8 +18,9 @@ suppressPackageStartupMessages({
 }
 
 ROOT <- .resolve_root()
-PROCESSED <- file.path(ROOT, "data", "processed")
-TABLES <- file.path(ROOT, "output", "tables")
+# GB_PROCESSED_DIR / GB_OUTPUT_DIR override the defaults (used by `make robustness`).
+PROCESSED <- Sys.getenv("GB_PROCESSED_DIR", file.path(ROOT, "data", "processed"))
+TABLES <- file.path(Sys.getenv("GB_OUTPUT_DIR", file.path(ROOT, "output")), "tables")
 dir.create(TABLES, recursive = TRUE, showWarnings = FALSE)
 
 EXCLUDE_GROUPS <- c("20260520_PM/ng1", "20280904/ghp1")
@@ -30,7 +31,8 @@ SESSION_LABELS <- c(
   "20260826"    = "August 26, 2026",
   "20280904"    = "September 4, 2026",
   "20260910"    = "September 10, 2026",
-  "20260914"    = "September 14, 2026"
+  "20260914"    = "September 14, 2026",
+  "20261006"    = "October 6, 2026 (Switzerland, unincentivized)"
 )
 
 trader_day <- read.csv(file.path(PROCESSED, "trader_day_panel_full.csv")) %>%
@@ -38,6 +40,9 @@ trader_day <- read.csv(file.path(PROCESSED, "trader_day_panel_full.csv")) %>%
 
 roster <- trader_day %>%
   distinct(participant_code, group_label, session_id, treatment)
+
+# only sessions present in the panel being analysed
+SESSION_LABELS <- SESSION_LABELS[names(SESSION_LABELS) %in% unique(roster$session_id)]
 
 # ── Session composition (before data-quality exclusions) ──────────────────────
 session_rows <- vapply(names(SESSION_LABELS), function(id) {

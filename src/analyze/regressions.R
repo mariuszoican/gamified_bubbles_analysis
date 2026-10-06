@@ -66,8 +66,9 @@ conflicts_prefer(dplyr::filter, dplyr::first, dplyr::lag)
 }
 
 ROOT      <- .resolve_root()
-PROCESSED <- file.path(ROOT, "data", "processed")
-TABLES    <- file.path(ROOT, "output", "tables")
+# GB_PROCESSED_DIR / GB_OUTPUT_DIR override the defaults (used by `make robustness`).
+PROCESSED <- Sys.getenv("GB_PROCESSED_DIR", file.path(ROOT, "data", "processed"))
+TABLES    <- file.path(Sys.getenv("GB_OUTPUT_DIR", file.path(ROOT, "output")), "tables")
 dir.create(TABLES, recursive = TRUE, showWarnings = FALSE)
 
 # ── LOAD & RESTRICT SAMPLE (GHP vs NG, outlier group excluded) ────────────────
@@ -462,7 +463,10 @@ trader_mkt <- trader_day %>%
 
 g_trades  <- trader_mkt$n_trades[trader_mkt$gamified == 1]
 ng_trades <- trader_mkt$n_trades[trader_mkt$gamified == 0]
-stopifnot(length(g_trades) == 132L, length(ng_trades) == 108L)
+# Paper-sample sanity check; skipped for robustness samples (GB_PROCESSED_DIR set).
+if (!nzchar(Sys.getenv("GB_PROCESSED_DIR"))) {
+  stopifnot(length(g_trades) == 132L, length(ng_trades) == 108L)
+}
 
 pct1 <- function(x) sprintf("%.1f", 100 * x)
 pp1  <- function(x) sprintf("%+.1f", 100 * x)

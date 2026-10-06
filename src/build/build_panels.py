@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from pathlib import Path
 
 import pandas as pd
 
@@ -12,9 +13,21 @@ from process_session import process_session
 PANEL_NAMES = ["market_day_panel", "trader_day_panel", "participant_payments"]
 
 
-def build_all(*, only: list[str] | None = None, skip_process: bool = False) -> None:
+def build_all(
+    *,
+    only: list[str] | None = None,
+    force_include: list[str] | None = None,
+    out_dir: Path | None = None,
+    skip_process: bool = False,
+) -> None:
     sessions = load_sessions()
-    included = [s for s in sessions if s.get("include", False)]
+    force_set = {str(s) for s in (force_include or [])}
+    unknown = force_set - {str(s["id"]) for s in sessions}
+    if unknown:
+        raise SystemExit(f"Unknown session ids in --force-include: {sorted(unknown)}")
+    included = [
+        s for s in sessions if s.get("include", False) or str(s["id"]) in force_set
+    ]
     if only:
         only_set = set(only)
         included = [s for s in included if s["id"] in only_set]
@@ -27,7 +40,8 @@ def build_all(*, only: list[str] | None = None, skip_process: bool = False) -> N
             print(f"Processing {s['id']} (export {s['export_date']})…")
             process_session(s["id"])
 
-    PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
+    out_dir = Path(out_dir) if out_dir else PROCESSED_DIR
+    out_dir.mkdir(parents=True, exist_ok=True)
     session_ids = [s["id"] for s in included]
     print(f"Concatenating {len(session_ids)} sessions: {session_ids}")
 
@@ -42,10 +56,14 @@ def build_all(*, only: list[str] | None = None, skip_process: bool = False) -> N
             med = full.drop_duplicates("participant_code")[
                 "fin_quiz_score"
             ].median()
-            full["above_median_literacy"] = (
-                full["fin_quiz_score"] > med
-            ).astype(int)
-        out = PROCESSED_DIR / f"{name}_full.csv"
+            lit = full["fin_quiz_score"]
+            full["above_median_literacy"] = (lit > med).astype(int)
+            if lit.isna().any():
+                # stays missing for traders who never answered the quiz
+                full["above_median_literacy"] = full["above_median_literacy"].where(
+                    lit.notna()
+                )
+        out = out_dir / f"{name}_full.csv"
         full.to_csv(out, index=False)
         print(f"  wrote {out} ({len(full):,} rows)")
 
@@ -58,9 +76,26 @@ if __name__ == "__main__":
         help="Restrict to these session ids (still must have include: true)",
     )
     parser.add_argument(
+        "--force-include",
+        nargs="+",
+        metavar="ID",
+        help="Also include these session ids even if include: false "
+        "(robustness checks; pair with --out-dir)",
+    )
+    parser.add_argument(
+        "--out-dir",
+        type=Path,
+        help="Write *_full.csv here instead of data/processed/",
+    )
+    parser.add_argument(
         "--skip-process",
         action="store_true",
         help="Only concatenate existing interim panels",
     )
     args = parser.parse_args()
-    build_all(only=args.only, skip_process=args.skip_process)
+    build_all(
+        only=args.only,
+        force_include=args.force_include,
+        out_dir=args.out_dir,
+        skip_process=args.skip_process,
+    )

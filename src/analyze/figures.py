@@ -30,6 +30,7 @@ Usage:  python src/analyze/figures.py
 from __future__ import annotations
 
 import argparse
+import os
 from pathlib import Path
 
 import matplotlib
@@ -41,8 +42,9 @@ import numpy as np
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[2]
-PROCESSED = ROOT / "data" / "processed"
-FIG_DIR = ROOT / "output" / "figures"
+# GB_PROCESSED_DIR / GB_OUTPUT_DIR override the defaults (used by `make robustness`).
+PROCESSED = Path(os.environ.get("GB_PROCESSED_DIR", ROOT / "data" / "processed"))
+FIG_DIR = Path(os.environ.get("GB_OUTPUT_DIR", ROOT / "output")) / "figures"
 SLIDES_FIG_DIR = (
     ROOT.parent / "gamifiedbubbles_paper" / "Slides" / "Figures"
 )

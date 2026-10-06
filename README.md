@@ -52,6 +52,7 @@ Sample throughout: `ghp` vs `ng` only. Two groups are dropped, matching the pape
 | `make panels` | Rebuild `data/processed/*_full.csv` from `data/raw/` |
 | `make session ID=20260512` | Process one session into `data/interim/` |
 | `make payments ID=20260512` | Write `data/payments/payments_{id}.xlsx` |
+| `make robustness ID=20261006` | Main sample plus an `include: false` session → `data/processed/with_{id}/` and `output/with_{id}/`; `data/processed/` and `output/` untouched |
 | `make clean-interim` | Delete rebuildable interim panels |
 
 ## Layout
@@ -75,4 +76,6 @@ output/figures/
 
 Folder date is the lab day; the filename date is the export day. They can differ (e.g. `data/raw/20260520_PM/` holds `*_2026-05-21.csv`). Quote `id` values so YAML does not parse them as integers.
 
-Incomplete markets (`realized_group_size` ≠ 6), bot groups, and training rounds are dropped in `src/build/process_session.py`.
+Incomplete markets (`realized_group_size` ≠ 6), bot groups, and training rounds are dropped in `src/build/process_session.py`. By default a trader must also have reached the final oTree page; set `require_final_page: false` on a session to instead require completed trading rounds (survey fields are then missing for traders who left during the exit questionnaire).
+
+Sessions registered with `include: false` (e.g. the pilot, or the unincentivized Swiss session `20261006`) stay out of the paper sample; use `make robustness ID=…` to see how results move when one is added.

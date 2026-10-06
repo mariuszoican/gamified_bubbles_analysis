@@ -348,11 +348,17 @@ def process_session(
     The DATE / FOLDER_NAME / SESSIONS kwargs are kept for backward
     compatibility with older call sites.
     """
+    # Keep only participants who reached the final page. Sessions can switch
+    # this off in sessions.yaml (`require_final_page: false`) when traders
+    # completed all trading rounds but left during the exit questionnaire
+    # (e.g. the unincentivized 20261006 session); survey fields are then NaN.
+    REQUIRE_FINAL_PAGE = True
     if session_id is not None:
         session = get_session(session_id)
         DATE = session["export_date"]
         FOLDER_NAME = session["id"]
         SESSIONS = list(session["oTree_codes"])
+        REQUIRE_FINAL_PAGE = bool(session.get("require_final_page", True))
         raw_path = raw_dir_for(session)
     else:
         if not (DATE and FOLDER_NAME and SESSIONS):
@@ -395,9 +401,15 @@ def process_session(
 
         app = pd.read_csv(raw_path / f"trader_bridge_app_{date}.csv")
         app = app[app["session.code"].isin(sessions)]
-        app = app[
-            (app["participant._current_page_name"].isin(["FinalForProlific", "Payoff"]))
-        ]
+        if REQUIRE_FINAL_PAGE:
+            app = app[
+                (app["participant._current_page_name"].isin(["FinalForProlific", "Payoff"]))
+            ]
+        else:
+            # require completed trading instead: one row per trading round
+            n_rounds = app.groupby("participant.code")["subsession.round_number"].max()
+            done = n_rounds[n_rounds == n_rounds.max()].index
+            app = app[app["participant.code"].isin(done)]
         app = app[app["participant.code"].isin(participants_full_groups)]
 
         mbo = pd.read_csv(
@@ -478,24 +490,25 @@ def process_session(
     }
     post_exp = post_exp.rename(columns=POST_COLUMN_MAP)
 
-    post_exp["gender_female"] = (post_exp["gender"] == "Female").astype(int)
+    # Survey dummies stay NaN when the question was never answered
+    # (only happens when require_final_page is false).
+    post_exp["gender_female"] = post_exp["gender"].map(
+        lambda g: np.nan if pd.isna(g) else int(g == "Female")
+    )
     post_exp["fin_quiz_score"] = (
         post_exp["player.num_correct_answers"] / post_exp["player.num_quiz_questions"]
     )
-    post_exp["high_education"] = (
-        post_exp["player.education"]
-        .isin(
-            [
-                "MBA",
-                "PhD",
-                "master",
-                "undergraduate: 1st year",
-                "undergraduate: 2nd year",
-                "undergraduate: 3rd year",
-                "undergraduate: 4th year",
-            ]
-        )
-        .astype(int)
+    HIGH_EDUCATION = {
+        "MBA",
+        "PhD",
+        "master",
+        "undergraduate: 1st year",
+        "undergraduate: 2nd year",
+        "undergraduate: 3rd year",
+        "undergraduate: 4th year",
+    }
+    post_exp["high_education"] = post_exp["player.education"].map(
+        lambda e: np.nan if pd.isna(e) else int(e in HIGH_EDUCATION)
     )
     post_exp["overconfidence"] = (
         post_exp["self_assessment"] / 10 - post_exp["fin_quiz_score"]
